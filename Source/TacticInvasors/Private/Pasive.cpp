@@ -3,25 +3,3 @@
 
 #include "Pasive.h"
 
-// Sets default values
-APasive::APasive()
-{
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
-
-}
-
-// Called when the game starts or when spawned
-void APasive::BeginPlay()
-{
-	Super::BeginPlay();
-	
-}
-
-// Called every frame
-void APasive::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
-}
-

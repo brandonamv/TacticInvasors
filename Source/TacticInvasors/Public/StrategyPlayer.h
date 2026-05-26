@@ -4,30 +4,29 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Resource.generated.h"
+#include "StrategyPlayer.generated.h"
+
+class ASpawner;
+class AResource;
 
 UCLASS()
-class TACTICINVASORS_API AResource : public AActor
+class TACTICINVASORS_API AStrategyPlayer : public AActor
 {
 	GENERATED_BODY()
 	
 public:	
 	// Sets default values for this actor's properties
-	AResource();
+	AStrategyPlayer();
+	void InitializeAgent(ASpawner* InSpawner);
 
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-	bool bPlayer1 = false;
-	bool bPlayer2 = false;
-	bool bTaked1 = false;
-	bool bTaked2 = false;
-	
+	UPROPERTY()
+	AResource* TargetResource = nullptr;
 
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-	bool Aviable();
-	void SetPlayer();
-	void SetTaked();
+
 };

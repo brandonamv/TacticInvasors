@@ -5,6 +5,30 @@
 
 #include "Engine/World.h"
 
+void ASpawner::PushFreeResource(AResource* Resource)
+{
+    if (Resource)
+    {
+        SFreeResources.Add(Resource);
+    }
+}
+
+AResource* ASpawner::PopFreeResource()
+{
+    if (SFreeResources.Num() > 0)
+    {
+        AResource* Resource = nullptr;
+		Resource = SFreeResources.Pop();
+        Resource->SetPlayer();
+        if (Resource->Aviable())
+        {
+			SFreeResources.Add(Resource);
+        }
+        return Resource;
+    }
+    return nullptr;
+}
+
 ASpawner::ASpawner()
 {
     // Inicializamos variables con valores por defecto seguros
@@ -13,7 +37,7 @@ ASpawner::ASpawner()
     InitialResourcePlayers = 5;
     SpawnAreaSize = FVector(500.0f, 500.0f, 100.0f);
     SpawnerCenterLocation = FVector::ZeroVector;
-    PasiveClass = APasive::StaticClass(); // Clase por defecto por si no se asigna en BP
+
 }
 
 void ASpawner::BeginPlay()
@@ -25,6 +49,11 @@ void ASpawner::BeginPlay()
 
     // Si no has configurado SpawnerCenterLocation, usamos la posición del Actor en el mapa
     FVector BaseLocation = SpawnerCenterLocation.IsZero() ? GetActorLocation() : SpawnerCenterLocation;
+    FRotator SpawnRotation = FRotator::ZeroRotator;
+
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.Owner = this;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
     for (int32 x = 0; x < InitialResourcePlayers; x++)
     {
@@ -34,19 +63,14 @@ void ASpawner::BeginPlay()
             FVector SpawnLocation = BaseLocation + FVector(
                 FMath::FRandRange(-SpawnAreaSize.X, SpawnAreaSize.X),
                 FMath::FRandRange(-SpawnAreaSize.Y, SpawnAreaSize.Y),
-                FMath::FRandRange(50.0f, 50.0f + SpawnAreaSize.Z)
+                110.0f
             );
-
-            FRotator SpawnRotation = FRotator::ZeroRotator;
-
-            FActorSpawnParameters SpawnParams;
-            SpawnParams.Owner = this;
-            SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
 			AResource* NewResource = World->SpawnActor<AResource>(ResourceClass, SpawnLocation, SpawnRotation, SpawnParams);
 
             if (NewResource)
             {
+				this->SFreeResources.Push(NewResource);
                 UE_LOG(LogTemp, Log, TEXT("Spawner [%s]: Successfully spawned %s at %s"),
                     *GetName(), *NewResource->GetName(), *SpawnLocation.ToString());
             }
@@ -57,68 +81,52 @@ void ASpawner::BeginPlay()
             break;
         }
     }
-    for (int32 i = 0; i < InitialAgresivePlayers; i++)
+	int32 ITotalAgents = InitialAgresivePlayers + InitialPasivePlayers;
+	int32 ISpawnedAgents = 0;
+	int32 ICurrentAgresives = 0;
+	int32 ICurrentPasives = 0;
+	bool bSpawningAgresives = true;
+    while (ISpawnedAgents<ITotalAgents)
     {
-        // Validamos que tengamos una clase válida asignada antes de spawnear
-        if (AgresiveClass)
+        FVector SpawnLocation = BaseLocation + FVector(
+            FMath::FRandRange(-SpawnAreaSize.X * 2, SpawnAreaSize.X * 2),
+            FMath::FRandRange(-SpawnAreaSize.Y * 2, SpawnAreaSize.Y * 2),
+            FMath::FRandRange(50.0f, 50.0f + SpawnAreaSize.Z)
+        );
+        if (bSpawningAgresives)
         {
-            FVector SpawnLocation = BaseLocation + FVector(
-                FMath::FRandRange(-SpawnAreaSize.X*2, SpawnAreaSize.X*2),
-                FMath::FRandRange(-SpawnAreaSize.Y*2, SpawnAreaSize.Y*2),
-                FMath::FRandRange(50.0f, 50.0f + SpawnAreaSize.Z)
-            );
-
-            FRotator SpawnRotation = FRotator::ZeroRotator;
-
-            FActorSpawnParameters SpawnParams;
-            SpawnParams.Owner = this;
-            SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-
             AAgresive* NewAgresive = World->SpawnActor<AAgresive>(AgresiveClass, SpawnLocation, SpawnRotation, SpawnParams);
 
             if (NewAgresive)
             {
+                NewAgresive->InitializeAgent(this);
+                this->SAliveAgresives.Push(NewAgresive);
                 UE_LOG(LogTemp, Log, TEXT("Spawner [%s]: Successfully spawned %s at %s"),
                     *GetName(), *NewAgresive->GetName(), *SpawnLocation.ToString());
+                bSpawningAgresives = false;
+				ICurrentAgresives++;
+            }
+            else {
+                continue;
             }
         }
         else
         {
-            UE_LOG(LogTemp, Warning, TEXT("Spawner [%s]: No se ha asignado una PasiveClass en el Blueprint."), *GetName());
-            break;
-        }
-    }
-
-    for (int32 i = 0; i < InitialPasivePlayers; i++)
-    {
-        // Validamos que tengamos una clase válida asignada antes de spawnear
-        if (AgresiveClass)
-        {
-            FVector SpawnLocation = BaseLocation + FVector(
-                FMath::FRandRange(-SpawnAreaSize.X*2, SpawnAreaSize.X*2),
-                FMath::FRandRange(-SpawnAreaSize.Y*2, SpawnAreaSize.Y*2),
-                FMath::FRandRange(50.0f, 50.0f + SpawnAreaSize.Z)
-            );
-
-            FRotator SpawnRotation = FRotator::ZeroRotator;
-
-            FActorSpawnParameters SpawnParams;
-            SpawnParams.Owner = this;
-            SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-
             APasive* NewPasive = World->SpawnActor<APasive>(PasiveClass, SpawnLocation, SpawnRotation, SpawnParams);
 
             if (NewPasive)
             {
+                NewPasive->InitializeAgent(this);
+                this->SAlivePasives.Push(NewPasive);
                 UE_LOG(LogTemp, Log, TEXT("Spawner [%s]: Successfully spawned %s at %s"),
                     *GetName(), *NewPasive->GetName(), *SpawnLocation.ToString());
+				bSpawningAgresives = true;
+                ICurrentPasives++;
+            }
+            else {
+				continue;
             }
         }
-        else
-        {
-            UE_LOG(LogTemp, Warning, TEXT("Spawner [%s]: No se ha asignado una PasiveClass en el Blueprint."), *GetName());
-            break;
-        }
+		ISpawnedAgents++;
     }
-    
 }

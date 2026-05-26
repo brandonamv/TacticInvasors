@@ -7,7 +7,6 @@
 #include "Pasive.h"
 #include "Agresive.h"
 #include "Resource.h"
-#include <stack>
 #include "Spawner.generated.h"
 
 /**
@@ -19,6 +18,10 @@ class TACTICINVASORS_API ASpawner : public AInfo
 	GENERATED_BODY()
 public:
     ASpawner();
+    void PushFreeResource(AResource* Resource);
+    AResource* PopFreeResource();
+
+
 
 protected:
     virtual void BeginPlay() override;
@@ -54,14 +57,20 @@ public:
 
 private:
 
-    std::stack<AResource*> SFreeResources;
-    std::stack<AResource*> SBussyResources;
+    UPROPERTY()
+    TArray<AResource*> SFreeResources;
 
-	std::stack<APasive*> SAlivePasives;
-	std::stack<APasive*> SDeadPasives;
+    UPROPERTY()
+    TArray<APasive*> SAlivePasives;
 
-	std::stack<AAgresive*> SAliveAgresives;
-	std::stack<AAgresive*> SDeadAgresives;
+    UPROPERTY()
+    TArray<APasive*> SDeadPasives;
+
+    UPROPERTY()
+    TArray<AAgresive*> SAliveAgresives;
+
+    UPROPERTY()
+    TArray<AAgresive*> SDeadAgresives;
 
 
 };

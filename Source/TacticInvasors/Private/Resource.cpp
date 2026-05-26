@@ -2,7 +2,7 @@
 
 
 #include "Resource.h"
-
+#include "Spawner.h"
 // Sets default values
 AResource::AResource()
 {
@@ -25,3 +25,37 @@ void AResource::Tick(float DeltaTime)
 
 }
 
+bool AResource::Aviable()
+{
+	return !bPlayer1 || !bPlayer2;
+}
+
+void AResource::SetPlayer()
+{
+	if (!bPlayer1)
+	{
+		bPlayer1 = true;
+		return;
+	}
+	if (!bPlayer2)
+	{
+		bPlayer2 = true;
+	}
+}
+
+void AResource::SetTaked()
+{
+	if (!bTaked1)
+	{
+		bTaked1 = true;
+		return;
+	}
+	if (!bTaked2)
+	{
+		bTaked1 = false;
+		bPlayer1 = false;
+		bPlayer2 = false;
+		this->GetOwner<ASpawner>()->PushFreeResource(this);
+	}
+
+}

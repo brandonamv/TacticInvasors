@@ -2,31 +2,106 @@
 
 
 #include "Spawner.h"
-
+#include "Pasive.h"
+#include "Agresive.h"
+#include "StrategyPlayer.h"
+#include "Resource.h"
 #include "Engine/World.h"
 
 void ASpawner::PushFreeResource(AResource* Resource)
 {
-    if (Resource)
+    if (!Resource)
+    {
+        return;
+    }
+
+    // Use actor location as fallback if SpawnerCenterLocation wasn't configured
+    const FVector BaseLocation = SpawnerCenterLocation.IsZero() ? GetActorLocation() : SpawnerCenterLocation;
+
+    // Store resource in the free pool
+    SFreeResources.Push(Resource);
+
+    // Place resource within spawn area
+    Resource->SetActorLocation(BaseLocation + FVector(
+        FMath::FRandRange(-SpawnAreaSize.X, SpawnAreaSize.X),
+        FMath::FRandRange(-SpawnAreaSize.Y, SpawnAreaSize.Y),
+        110.0f
+    ));
+
+    UE_LOG(LogTemp, Log, TEXT("Resource free [%s]: Resources Freed %d"),
+        *Resource->GetName(), SFreeResources.Num());
+}
+AResource* ASpawner::PopFreeResource()
+{
+    if (SFreeResources.Num() == 0)
+    {
+        return nullptr;
+    }
+
+    TWeakObjectPtr<AResource> WeakRes = SFreeResources.Pop();
+    AResource* Resource = WeakRes.Get();
+    if (!IsValid(Resource))
+    {
+        return nullptr;
+    }
+
+    // Claim one player slot on the resource
+    Resource->SetPlayer();
+
+    // If resource still has free slots, put it back into pool
+    if (Resource->Aviable())
     {
         SFreeResources.Add(Resource);
     }
+
+    return Resource;
 }
 
-AResource* ASpawner::PopFreeResource()
+void ASpawner::PushFreePlayer(AStrategyPlayer* Player)
 {
-    if (SFreeResources.Num() > 0)
+    if (!IsValid(Player))
     {
-        AResource* Resource = nullptr;
-		Resource = SFreeResources.Pop();
-        Resource->SetPlayer();
-        if (Resource->Aviable())
-        {
-			SFreeResources.Add(Resource);
-        }
-        return Resource;
+        return;
     }
-    return nullptr;
+
+    SFreePlayers.Add(Player);
+    UE_LOG(LogTemp, Log, TEXT("Player free [%s]: Players Freed %d"),
+        *Player->GetName(), SFreePlayers.Num());
+
+    if (bSpawningAgents)
+    {
+        return;
+    }
+
+    const int32 TotalAgents = SAliveAgresives.Num() + SAlivePasives.Num();
+    if (TotalAgents <= 0)
+    {
+        return;
+    }
+
+    if (SFreePlayers.Num() < TotalAgents)
+    {
+        return;
+    }
+
+    _sleep(1.0f);
+
+    bSpawningAgents = true;
+
+    TArray<AStrategyPlayer*> PlayersToAssign = SFreePlayers;
+    SFreePlayers.Empty();
+
+    for (AStrategyPlayer* FreePlayer : PlayersToAssign)
+    {
+        if (!IsValid(FreePlayer))
+        {
+            continue;
+        }
+
+        FreePlayer->InitializeAgent(this);
+    }
+
+    bSpawningAgents = false;
 }
 
 ASpawner::ASpawner()
@@ -44,6 +119,11 @@ void ASpawner::BeginPlay()
 {
     Super::BeginPlay();
 
+    this->SpawnAgents();
+}
+
+void ASpawner::SpawnAgents()
+{
     UWorld* World = GetWorld();
     if (!World) return;
 
@@ -66,11 +146,11 @@ void ASpawner::BeginPlay()
                 110.0f
             );
 
-			AResource* NewResource = World->SpawnActor<AResource>(ResourceClass, SpawnLocation, SpawnRotation, SpawnParams);
+            AResource* NewResource = World->SpawnActor<AResource>(ResourceClass, SpawnLocation, SpawnRotation, SpawnParams);
 
             if (NewResource)
             {
-				this->SFreeResources.Push(NewResource);
+                this->SFreeResources.Push(NewResource);
                 UE_LOG(LogTemp, Log, TEXT("Spawner [%s]: Successfully spawned %s at %s"),
                     *GetName(), *NewResource->GetName(), *SpawnLocation.ToString());
             }
@@ -81,12 +161,12 @@ void ASpawner::BeginPlay()
             break;
         }
     }
-	int32 ITotalAgents = InitialAgresivePlayers + InitialPasivePlayers;
-	int32 ISpawnedAgents = 0;
-	int32 ICurrentAgresives = 0;
-	int32 ICurrentPasives = 0;
-	bool bSpawningAgresives = true;
-    while (ISpawnedAgents<ITotalAgents)
+    int32 ITotalAgents = InitialAgresivePlayers + InitialPasivePlayers;
+    int32 ISpawnedAgents = 0;
+    int32 ICurrentAgresives = 0;
+    int32 ICurrentPasives = 0;
+    bool bSpawningAgresives = true;
+    while (ISpawnedAgents < ITotalAgents)
     {
         FVector SpawnLocation = BaseLocation + FVector(
             FMath::FRandRange(-SpawnAreaSize.X * 2, SpawnAreaSize.X * 2),
@@ -104,7 +184,7 @@ void ASpawner::BeginPlay()
                 UE_LOG(LogTemp, Log, TEXT("Spawner [%s]: Successfully spawned %s at %s"),
                     *GetName(), *NewAgresive->GetName(), *SpawnLocation.ToString());
                 bSpawningAgresives = false;
-				ICurrentAgresives++;
+                ICurrentAgresives++;
             }
             else {
                 continue;
@@ -120,13 +200,13 @@ void ASpawner::BeginPlay()
                 this->SAlivePasives.Push(NewPasive);
                 UE_LOG(LogTemp, Log, TEXT("Spawner [%s]: Successfully spawned %s at %s"),
                     *GetName(), *NewPasive->GetName(), *SpawnLocation.ToString());
-				bSpawningAgresives = true;
+                bSpawningAgresives = true;
                 ICurrentPasives++;
             }
             else {
-				continue;
+                continue;
             }
         }
-		ISpawnedAgents++;
+        ISpawnedAgents++;
     }
 }

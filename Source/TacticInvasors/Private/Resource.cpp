@@ -8,7 +8,6 @@ AResource::AResource()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-
 }
 
 // Called when the game starts or when spawned
@@ -35,12 +34,15 @@ void AResource::SetPlayer()
 	if (!bPlayer1)
 	{
 		bPlayer1 = true;
+		bTaked1 = false;
 		return;
 	}
 	if (!bPlayer2)
 	{
 		bPlayer2 = true;
+		bTaked2 = false;
 	}
+
 }
 
 void AResource::SetTaked()
@@ -52,10 +54,21 @@ void AResource::SetTaked()
 	}
 	if (!bTaked2)
 	{
-		bTaked1 = false;
-		bPlayer1 = false;
-		bPlayer2 = false;
-		this->GetOwner<ASpawner>()->PushFreeResource(this);
+		bTaked2 = true;
+		this->FreeResource();
 	}
-
+}
+void AResource::FreeResource()
+{
+    bPlayer1 = false;
+    bPlayer2 = false;
+    ASpawner* OwnerSpawner = Cast<ASpawner>(GetOwner());
+    if (IsValid(OwnerSpawner))
+    {
+        OwnerSpawner->PushFreeResource(this);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[%s]: FreeResource: Owner spawner missing."), *GetName());
+    }
 }

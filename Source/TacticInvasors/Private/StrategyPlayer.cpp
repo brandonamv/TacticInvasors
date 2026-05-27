@@ -23,6 +23,7 @@ void AStrategyPlayer::InitializeAgent(ASpawner* InSpawner)
 	TargetResource = InSpawner->PopFreeResource();
 	if (TargetResource)
 	{
+		bHasTarget = true;
 		UE_LOG(LogTemp, Log, TEXT("[%s]: Assigned target resource [%s]."), *GetName(), *TargetResource->GetName());
 	}
 	else
@@ -45,11 +46,21 @@ void AStrategyPlayer::Tick(float DeltaTime)
 
 	if (!TargetResource)
 	{
-		TargetResource = this->GetOwner<ASpawner>()->PopFreeResource();
+		
 		return;
 	}
 
-	// 1. OBTENER EL MESH PRIMERO: Necesitamos su ubicación física real
+	if (!bHasTarget)
+	{
+		UStaticMeshComponent* Mesh = FindComponentByClass<UStaticMeshComponent>();
+		if (Mesh->IsSimulatingPhysics())
+		{
+			Mesh->SetPhysicsLinearVelocity(FVector::ZeroVector);
+			Mesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+		}
+		return;
+	}
+
 	UStaticMeshComponent* Mesh = FindComponentByClass<UStaticMeshComponent>();
 	if (!Mesh)
 	{
@@ -57,51 +68,39 @@ void AStrategyPlayer::Tick(float DeltaTime)
 		return;
 	}
 
-	// 2. Usamos GetComponentLocation() en vez de GetActorLocation() 
 	FVector CurrentPhysicalLocation = Mesh->GetComponentLocation();
-
-	// El objetivo también debería evaluarse idealmente desde su componente visual o su origen
 	FVector GoalLocation = TargetResource->GetActorLocation();
-
-	// 3. Calculamos la distancia real entre la esfera física y el cubo objetivo
 	const float Distance = FVector::Dist(CurrentPhysicalLocation, GoalLocation);
-
-	// 4. CONDICIÓN DE PARADA: 150.0f o 200.0f es una distancia prudente para el radio de colisión
-	if (Distance <= 150.0f)
+	const float StopDistance = 150.0f;
+	if (Distance <= StopDistance)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[%s]: Ha alcanzado el objetivo [%s] de forma física! Deteniendo."), *GetName(), *TargetResource->GetName());
-
 		if (Mesh->IsSimulatingPhysics())
 		{
-			// Frenamos por completo fuerzas lineales y rotacionales
 			Mesh->SetPhysicsLinearVelocity(FVector::ZeroVector);
 			Mesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
 		}
-
 		TargetResource->SetTaked();
-
-		// Limpiamos el target para no volver a entrar aquí
-		TargetResource = nullptr;
+		bHasTarget = false;
+		ASpawner* OwnerSpawner = Cast<ASpawner>(GetOwner());
+		if (IsValid(OwnerSpawner))
+		{
+			OwnerSpawner->PushFreePlayer(this);
+		}
 		return;
 	}
 
-	// 5. LÓGICA DE MOVIMIENTO DIRECCIONAL
 	FVector Direction = (GoalLocation - CurrentPhysicalLocation).GetSafeNormal();
-
-	const float Speed = 300.0f;
+	const float Speed = 300.0f; // consider UPROPERTY(EditAnywhere) float MoveSpeed;
 	FVector TargetVelocity = Direction * Speed;
+	TargetVelocity.Z = Mesh->GetComponentVelocity().Z;
 
 	if (!Mesh->IsSimulatingPhysics())
 	{
 		Mesh->SetSimulatePhysics(true);
 	}
 
-	// Mantener la gravedad
-	TargetVelocity.Z = Mesh->GetComponentVelocity().Z;
-
-	// Aplicamos la velocidad directamente al Mesh físico
+	// Prefer AddForce/AddImpulse for natural movement, otherwise SetPhysicsLinearVelocity
 	Mesh->SetPhysicsLinearVelocity(TargetVelocity);
-	this->SetActorLocation(CurrentPhysicalLocation);
-
+	// Do NOT call SetActorLocation; let physics drive the actor (or make Mesh the root component)
 }
 

@@ -30,4 +30,5 @@ public:
 	bool Aviable();
 	void SetPlayer();
 	void SetTaked();
+	void FreeResource();
 };

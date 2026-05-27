@@ -4,11 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Info.h"
-#include "Pasive.h"
-#include "Agresive.h"
-#include "Resource.h"
 #include "Spawner.generated.h"
-
+class APasive;
+class AAgresive;
+class AResource;
+class AStrategyPlayer;
 /**
  * 
  */
@@ -16,11 +16,12 @@ UCLASS()
 class TACTICINVASORS_API ASpawner : public AInfo
 {
 	GENERATED_BODY()
+
 public:
     ASpawner();
     void PushFreeResource(AResource* Resource);
     AResource* PopFreeResource();
-
+	void PushFreePlayer(AStrategyPlayer* Player);
 
 
 protected:
@@ -57,8 +58,15 @@ public:
 
 private:
 
+    void SpawnAgents();
+    UPROPERTY()
+	bool bSpawningAgents = false;
+
     UPROPERTY()
     TArray<AResource*> SFreeResources;
+
+    UPROPERTY()
+	TArray<AStrategyPlayer*> SFreePlayers;
 
     UPROPERTY()
     TArray<APasive*> SAlivePasives;

@@ -57,8 +57,10 @@ public:
     FVector SpawnerCenterLocation;
 
 private:
+    FTimerHandle SpawnPlayersTimerHandle;
 
     void SpawnAgents();
+    void AssignFreePlayers();
     UPROPERTY()
 	bool bSpawningAgents = false;
 

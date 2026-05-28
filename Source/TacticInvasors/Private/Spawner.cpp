@@ -7,6 +7,7 @@
 #include "StrategyPlayer.h"
 #include "Resource.h"
 #include "Engine/World.h"
+#include "TimerManager.h" // <- needed for timers
 
 void ASpawner::PushFreeResource(AResource* Resource)
 {
@@ -15,18 +16,12 @@ void ASpawner::PushFreeResource(AResource* Resource)
         return;
     }
 
-    // Use actor location as fallback if SpawnerCenterLocation wasn't configured
-    const FVector BaseLocation = SpawnerCenterLocation.IsZero() ? GetActorLocation() : SpawnerCenterLocation;
-
     // Store resource in the free pool
     SFreeResources.Push(Resource);
 
-    // Place resource within spawn area
-    Resource->SetActorLocation(BaseLocation + FVector(
-        FMath::FRandRange(-SpawnAreaSize.X, SpawnAreaSize.X),
-        FMath::FRandRange(-SpawnAreaSize.Y, SpawnAreaSize.Y),
-        110.0f
-    ));
+    UStaticMeshComponent* Mesh = Resource->FindComponentByClass<UStaticMeshComponent>();
+    if (Mesh)
+        Mesh->SetSimulatePhysics(true);
 
     UE_LOG(LogTemp, Log, TEXT("Resource free [%s]: Resources Freed %d"),
         *Resource->GetName(), SFreeResources.Num());
@@ -47,10 +42,23 @@ AResource* ASpawner::PopFreeResource()
 
     // Claim one player slot on the resource
     Resource->SetPlayer();
-
     // If resource still has free slots, put it back into pool
     if (Resource->Aviable())
     {
+        UStaticMeshComponent* Mesh = Resource->FindComponentByClass<UStaticMeshComponent>();
+        FVector BaseLocation = SpawnerCenterLocation.IsZero() ? GetActorLocation() : SpawnerCenterLocation;
+        FVector SpawnLocation = BaseLocation + FVector(
+            FMath::FRandRange(-SpawnAreaSize.X, SpawnAreaSize.X),
+            FMath::FRandRange(-SpawnAreaSize.Y, SpawnAreaSize.Y),
+            110.0f
+        );
+        if (Mesh)
+        {
+			Mesh->SetWorldLocation(SpawnLocation);
+            Mesh->SetSimulatePhysics(false);
+        }
+        
+		Resource->SetActorLocation(SpawnLocation);
         SFreeResources.Add(Resource);
     }
 
@@ -84,10 +92,27 @@ void ASpawner::PushFreePlayer(AStrategyPlayer* Player)
         return;
     }
 
-    _sleep(1.0f);
+    // Schedule a non-blocking delayed call instead of blocking the game thread
+    if (UWorld* World = GetWorld())
+    {
+        // Avoid scheduling multiple timers if one is already active
+        if (!World->GetTimerManager().IsTimerActive(SpawnPlayersTimerHandle))
+        {
+            World->GetTimerManager().SetTimer(SpawnPlayersTimerHandle, this, &ASpawner::AssignFreePlayers, 5.0f, false);
+        }
+    }
+}
+
+void ASpawner::AssignFreePlayers()
+{
+    if (bSpawningAgents)
+    {
+        return;
+    }
 
     bSpawningAgents = true;
 
+    // Move the free players into a local array so we can operate without holding onto the original container
     TArray<AStrategyPlayer*> PlayersToAssign = SFreePlayers;
     SFreePlayers.Empty();
 
@@ -140,13 +165,6 @@ void ASpawner::SpawnAgents()
         // Validamos que tengamos una clase válida asignada antes de spawnear
         if (ResourceClass)
         {
-            FVector SpawnLocation = BaseLocation + FVector(
-                FMath::FRandRange(-SpawnAreaSize.X, SpawnAreaSize.X),
-                FMath::FRandRange(-SpawnAreaSize.Y, SpawnAreaSize.Y),
-                110.0f
-            );
-
-            AResource* NewResource = World->SpawnActor<AResource>(ResourceClass, SpawnLocation, SpawnRotation, SpawnParams);
 
             if (NewResource)
             {

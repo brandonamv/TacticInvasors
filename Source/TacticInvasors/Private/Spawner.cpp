@@ -165,12 +165,12 @@ void ASpawner::SpawnAgents()
         // Validamos que tengamos una clase válida asignada antes de spawnear
         if (ResourceClass)
         {
-
+			AResource* NewResource = World->SpawnActor<AResource>(ResourceClass, BaseLocation, SpawnRotation, SpawnParams);
             if (NewResource)
             {
                 this->SFreeResources.Push(NewResource);
                 UE_LOG(LogTemp, Log, TEXT("Spawner [%s]: Successfully spawned %s at %s"),
-                    *GetName(), *NewResource->GetName(), *SpawnLocation.ToString());
+                    *GetName(), *NewResource->GetName());
             }
         }
         else

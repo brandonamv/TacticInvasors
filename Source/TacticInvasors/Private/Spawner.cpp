@@ -169,7 +169,7 @@ void ASpawner::SpawnAgents()
             if (NewResource)
             {
                 this->SFreeResources.Push(NewResource);
-                UE_LOG(LogTemp, Log, TEXT("Spawner [%s]: Successfully spawned %s at %s"),
+                UE_LOG(LogTemp, Log, TEXT("Spawner [%s]: Successfully spawned %s"),
                     *GetName(), *NewResource->GetName());
             }
         }

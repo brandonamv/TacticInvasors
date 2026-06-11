@@ -51,14 +51,13 @@ AResource* ASpawner::PopFreeResource()
             FMath::FRandRange(-SpawnAreaSize.X, SpawnAreaSize.X),
             FMath::FRandRange(-SpawnAreaSize.Y, SpawnAreaSize.Y),
             110.0f
-        );
+        );        
+		Resource->SetActorLocation(SpawnLocation);
         if (Mesh)
         {
-			Mesh->SetWorldLocation(SpawnLocation);
+            Mesh->SetWorldLocation(SpawnLocation);
             Mesh->SetSimulatePhysics(false);
         }
-        
-		Resource->SetActorLocation(SpawnLocation);
         SFreeResources.Add(Resource);
     }
 
@@ -98,7 +97,7 @@ void ASpawner::PushFreePlayer(AStrategyPlayer* Player)
         // Avoid scheduling multiple timers if one is already active
         if (!World->GetTimerManager().IsTimerActive(SpawnPlayersTimerHandle))
         {
-            World->GetTimerManager().SetTimer(SpawnPlayersTimerHandle, this, &ASpawner::AssignFreePlayers, 5.0f, false);
+            World->GetTimerManager().SetTimer(SpawnPlayersTimerHandle, this, &ASpawner::AssignFreePlayers, 2.0f, false);
         }
     }
 }

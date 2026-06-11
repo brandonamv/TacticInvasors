@@ -74,6 +74,7 @@ void AStrategyPlayer::Tick(float DeltaTime)
 	const float StopDistance = 150.0f;
 	if (Distance <= StopDistance)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("target pos actor [%s] mesh [%s]"), *GoalLocation.ToString(), *Mesh->GetComponentLocation().ToString());
 		if (Mesh->IsSimulatingPhysics())
 		{
 			Mesh->SetPhysicsLinearVelocity(FVector::ZeroVector);
@@ -90,7 +91,7 @@ void AStrategyPlayer::Tick(float DeltaTime)
 	}
 
 	FVector Direction = (GoalLocation - CurrentPhysicalLocation).GetSafeNormal();
-	const float Speed = 300.0f; // consider UPROPERTY(EditAnywhere) float MoveSpeed;
+	const float Speed = 500.0f; // consider UPROPERTY(EditAnywhere) float MoveSpeed;
 	FVector TargetVelocity = Direction * Speed;
 	TargetVelocity.Z = Mesh->GetComponentVelocity().Z;
 

@@ -3,6 +3,7 @@
 
 #include "Resource.h"
 #include "Spawner.h"
+#include "StrategyPlayer.h"
 // Sets default values
 AResource::AResource()
 {
@@ -45,11 +46,12 @@ void AResource::SetPlayer()
 
 }
 
-void AResource::SetTaked()
+void AResource::SetTaked(AStrategyPlayer* ATaker)
 {
 	if (!bTaked1)
 	{
 		bTaked1 = true;
+		APlayer1 = ATaker;
 		return;
 	}
 	if (!bTaked2)

@@ -9,7 +9,7 @@
 class ASpawner;
 class AResource;
 
-UCLASS()
+UCLASS() 
 class TACTICINVASORS_API AStrategyPlayer : public AActor
 {
 	GENERATED_BODY()
@@ -17,13 +17,23 @@ class TACTICINVASORS_API AStrategyPlayer : public AActor
 public:	
 	// Sets default values for this actor's properties
 	AStrategyPlayer();
-	void InitializeAgent(ASpawner* InSpawner);
+	bool InitializeAgent(ASpawner* InSpawner);
+	void SetAggresive(bool bAggresive) { bIsAgresive = bAggresive; }
+	bool IsAggresive() const { return bIsAgresive; }
+	void SetFitness(int32 InFitness) { Fitnees = InFitness; }
+	int32 GetFitness() const { return Fitnees; }
 
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 	UPROPERTY()
 	AResource* TargetResource = nullptr;
+
+	UPROPERTY()
+	bool bIsAgresive = false;
+
+	UPROPERTY()
+	int32 Fitnees;
 
 	bool bHasTarget = false;
 

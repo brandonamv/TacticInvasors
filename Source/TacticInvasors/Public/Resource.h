@@ -6,6 +6,8 @@
 #include "GameFramework/Actor.h"
 #include "Resource.generated.h"
 
+class AStrategyPlayer;
+
 UCLASS()
 class TACTICINVASORS_API AResource : public AActor
 {
@@ -29,6 +31,9 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	bool Aviable();
 	void SetPlayer();
-	void SetTaked();
+	void SetTaked(AStrategyPlayer* ATaker);
 	void FreeResource();
+
+private:
+	AStrategyPlayer* APlayer1 = nullptr;
 };

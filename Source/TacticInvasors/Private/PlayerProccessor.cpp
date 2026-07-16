@@ -2,15 +2,54 @@
 
 
 #include "PlayerProccessor.h"
+#include "StrategyPlayer.h" // Add this include to resolve the incomplete type error
 
 void APlayerProccessor::Initialize()
 {
     ReadFile();
+    // Log SInteractionsArray matrix
+	if (SInteractionsArray.Num() == 0)
+	{
+		UE_LOG(LogTemp, Log, TEXT("SInteractionsArray is empty."));
+	}
+	else
+	{
+		FString MatrixStr = TEXT("SInteractionsArray matrix:\n");
+		for (int32 Row = 0; Row < SInteractionsArray.Num(); ++Row)
+		{
+			const FFloatArray& RowArray = SInteractionsArray[Row];
+			FString RowStr = FString::Printf(TEXT("Row %d: ["), Row);
+			for (int32 Col = 0; Col < RowArray.Values.Num(); ++Col)
+			{
+				// Safely access value (we already have Col within range)
+				float Val = RowArray.Values[Col];
+				// Append value with comma separation
+				if (Col == 0)
+				{
+					RowStr += FString::Printf(TEXT("%f"), Val);
+				}
+				else
+				{
+					RowStr += FString::Printf(TEXT(", %f"), Val);
+				}
+			}
+			RowStr += TEXT("]\n");
+			MatrixStr += RowStr;
+		}
+		UE_LOG(LogTemp, Log, TEXT("%s"), *MatrixStr);
+	}
 }
 
-int32 APlayerProccessor::ProcessPlayers(AStrategyPlayer* Player1, AStrategyPlayer* Player2)
+void APlayerProccessor::ProcessPlayers(AStrategyPlayer* Player1, AStrategyPlayer* Player2)
 {
-    return 0;
+	// Existing fitness calculations
+    UE_LOG(LogTemp, Warning, TEXT("Processing players: P1 Aggressive: %d, P2 Aggressive: %d"), Player1->IsAggresive() ? 0 : 1,   Player2->IsAggresive() ? 0 : 1);
+    float P1Fitness = Player1->GetFitness() + SInteractionsArray[!Player1->IsAggresive()].Values[!Player2->IsAggresive()];
+	Player1->SetFitness(P1Fitness);
+    float P2Fitness = Player2->GetFitness() + SInteractionsArray[!Player2->IsAggresive()].Values[!Player1->IsAggresive()];
+	Player2->SetFitness(P2Fitness);
+
+	UE_LOG(LogTemp, Warning, TEXT("P1 fitness: %f, P2 fitness: %f"), Player1->GetFitness(), Player2->GetFitness());
 }
 
 void APlayerProccessor::ReadFile()
@@ -72,6 +111,7 @@ void APlayerProccessor::ReadFile()
                 for (int32 i = 0; i < 2 && i < ValoresStr.Num(); i++)
                 {
                     InteractionArray.Values.Add(ShuntingYard(ValoresStr[i]));
+					UE_LOG(LogTemp, Log, TEXT("Interaction value for %s: %f"), *ValoresStr[i], InteractionArray.Values.Last());
                 }
                 SInteractionsArray.Add(InteractionArray);
                 if (bAgresive)

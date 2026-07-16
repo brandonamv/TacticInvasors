@@ -20,8 +20,8 @@ public:
 	bool InitializeAgent(ASpawner* InSpawner);
 	void SetAggresive(bool bAggresive) { bIsAgresive = bAggresive; }
 	bool IsAggresive() const { return bIsAgresive; }
-	void SetFitness(int32 InFitness) { Fitnees = InFitness; }
-	int32 GetFitness() const { return Fitnees; }
+	void SetFitness(float InFitness) { Fitnees = InFitness; }
+	float GetFitness() const { return Fitnees; }
 
 protected:
 	// Called when the game starts or when spawned
@@ -33,7 +33,7 @@ protected:
 	bool bIsAgresive = false;
 
 	UPROPERTY()
-	int32 Fitnees;
+	float Fitnees;
 
 	bool bHasTarget = false;
 

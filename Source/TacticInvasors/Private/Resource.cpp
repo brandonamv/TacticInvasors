@@ -57,6 +57,15 @@ void AResource::SetTaked(AStrategyPlayer* ATaker)
 	if (!bTaked2)
 	{
 		bTaked2 = true;
+		ASpawner* OwnerSpawner = Cast<ASpawner>(GetOwner());
+		if (IsValid(OwnerSpawner))
+		{
+			OwnerSpawner->ProcessPlayers(APlayer1, ATaker);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[%s]: FreeResource: Owner spawner missing."), *GetName());
+		}
 		this->FreeResource();
 	}
 }

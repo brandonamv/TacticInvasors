@@ -162,6 +162,7 @@ void ASpawner::BeginPlay()
         APlayerProcessor = GetWorld()->SpawnActor<APlayerProccessor>();
         if (APlayerProcessor)
         {
+			APlayerProcessor->SetOwner(this);
             APlayerProcessor->Initialize();
             InitialAgresivePlayers = APlayerProcessor->GetInitialAgresivePlayers();
             InitialPasivePlayers = APlayerProcessor->GetInitialPasivePlayers();
@@ -274,4 +275,12 @@ void ASpawner::SpawnAgents()
 		this->PushFreePlayer(Agresive);
     }
 
+}
+
+void ASpawner::ProcessPlayers(AStrategyPlayer* Player1, AStrategyPlayer* Player2)
+{
+    if (APlayerProcessor)
+    {
+        APlayerProcessor->ProcessPlayers(Player1, Player2);
+    }
 }

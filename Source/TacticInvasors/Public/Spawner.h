@@ -27,6 +27,7 @@ public:
     void PushFreeResource(AResource* Resource);
     AResource* PopFreeResource();
 	void PushFreePlayer(AStrategyPlayer* Player);
+	void ProcessPlayers(AStrategyPlayer* Player1, AStrategyPlayer* Player2);
 
 
 protected:

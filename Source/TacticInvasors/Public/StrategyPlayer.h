@@ -17,7 +17,7 @@ class TACTICINVASORS_API AStrategyPlayer : public AActor
 public:	
 	// Sets default values for this actor's properties
 	AStrategyPlayer();
-	bool InitializeAgent(ASpawner* InSpawner);
+	bool InitializeAgent();
 	void SetAggresive(bool bAggresive) { bIsAgresive = bAggresive; }
 	bool IsAggresive() const { return bIsAgresive; }
 	void SetFitness(float InFitness) { Fitnees = InFitness; }

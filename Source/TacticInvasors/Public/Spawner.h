@@ -25,10 +25,12 @@ class TACTICINVASORS_API ASpawner : public AInfo
 public:
     ASpawner();
     void PushFreeResource(AResource* Resource);
-    AResource* PopFreeResource();
+    AResource* PopFreeResource(AStrategyPlayer* Player);
 	void PushFreePlayer(AStrategyPlayer* Player);
+	void PushWaitingPlayer(AStrategyPlayer* Player);
 	void ProcessPlayers(AStrategyPlayer* Player1, AStrategyPlayer* Player2);
-
+    void SpawnPlayer(AStrategyPlayer* Player);
+	void KillPlayer(AStrategyPlayer* Player);
 
 protected:
     virtual void BeginPlay() override;
@@ -71,22 +73,22 @@ private:
     UPROPERTY()
 	bool bSpawningAgents = false;
 
-    UPROPERTY()
     TArray<AResource*> SFreeResources;
+	TArray<AResource*> SActiveResources;
 
-	TQueue<AStrategyPlayer*> QFreePlayers;
+    TArray<AStrategyPlayer*> SActivePlayers;
+
+    TQueue<AStrategyPlayer*> QWaitingPlayers;
+	int32 CurrentWaitingPlayers = 0;
 
     UPROPERTY()
-	int32 CurrentFreePlayers = 0;
+    int32 CurrentAgresivePlayers = 0;
 
     UPROPERTY()
-    TArray<APasive*> SAlivePasives;
+    int32 CurrentPasivePlayers = 0;
 
     UPROPERTY()
 	TArray<APasive*> SDeadPasives;
-
-    UPROPERTY()
-    TArray<AAgresive*> SAliveAgresives;
 
     UPROPERTY()
     TArray<AAgresive*> SDeadAgresives;

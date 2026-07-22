@@ -16,6 +16,7 @@ class TACTICINVASORS_API AResource : public AActor
 public:	
 	// Sets default values for this actor's properties
 	AResource();
+	AStrategyPlayer* APlayer1 = nullptr;
 
 protected:
 	// Called when the game starts or when spawned
@@ -30,10 +31,7 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 	bool Aviable();
-	void SetPlayer();
-	void SetTaked(AStrategyPlayer* ATaker);
+	void SetAsigned(AStrategyPlayer* Player);
+	void SetTaked(AStrategyPlayer* Player);
 	void FreeResource();
-
-private:
-	AStrategyPlayer* APlayer1 = nullptr;
 };

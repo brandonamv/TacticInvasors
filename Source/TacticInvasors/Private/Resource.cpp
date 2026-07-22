@@ -30,12 +30,13 @@ bool AResource::Aviable()
 	return !bPlayer1 || !bPlayer2;
 }
 
-void AResource::SetPlayer()
+void AResource::SetAsigned(AStrategyPlayer* Player)
 {
 	if (!bPlayer1)
 	{
 		bPlayer1 = true;
 		bTaked1 = false;
+		APlayer1 = Player;
 		return;
 	}
 	if (!bPlayer2)
@@ -46,26 +47,18 @@ void AResource::SetPlayer()
 
 }
 
-void AResource::SetTaked(AStrategyPlayer* ATaker)
+void AResource::SetTaked(AStrategyPlayer* Player)
 {
+	ASpawner* OwnerSpawner = Cast<ASpawner>(GetOwner());
+	OwnerSpawner->PushFreePlayer(Player);
 	if (!bTaked1)
 	{
 		bTaked1 = true;
-		APlayer1 = ATaker;
 		return;
 	}
 	if (!bTaked2)
 	{
 		bTaked2 = true;
-		ASpawner* OwnerSpawner = Cast<ASpawner>(GetOwner());
-		if (IsValid(OwnerSpawner))
-		{
-			OwnerSpawner->ProcessPlayers(APlayer1, ATaker);
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[%s]: FreeResource: Owner spawner missing."), *GetName());
-		}
 		this->FreeResource();
 	}
 }

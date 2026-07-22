@@ -34,6 +34,7 @@ class TACTICINVASORS_API APlayerProccessor : public AInfo
 public:
 	void Initialize();
 	void ProcessPlayers(AStrategyPlayer* Player1, AStrategyPlayer* Player2);
+    void ProcessPlayer(AStrategyPlayer* Player);
 	int32 GetInitialPasivePlayers() const { return InitialPasivePlayers; }
 	int32 GetInitialAgresivePlayers() const { return InitialAgresivePlayers; }
 

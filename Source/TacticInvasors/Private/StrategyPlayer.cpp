@@ -13,14 +13,10 @@ AStrategyPlayer::AStrategyPlayer()
 
 }
 
-bool AStrategyPlayer::InitializeAgent(ASpawner* InSpawner)
+bool AStrategyPlayer::InitializeAgent()
 {
-	if (!InSpawner)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[%s]: Spawner is null. Cannot initialize agent."), *GetName());
-		return false;
-	}
-	TargetResource = InSpawner->PopFreeResource();
+	ASpawner* InSpawner = Cast<ASpawner>(GetOwner());
+	TargetResource = InSpawner->PopFreeResource(this);
 	if (TargetResource)
 	{
 		bHasTarget = true;
@@ -84,11 +80,6 @@ void AStrategyPlayer::Tick(float DeltaTime)
 		}
 		TargetResource->SetTaked(this);
 		bHasTarget = false;
-		ASpawner* OwnerSpawner = Cast<ASpawner>(GetOwner());
-		if (IsValid(OwnerSpawner))
-		{
-			OwnerSpawner->PushFreePlayer(this);
-		}
 		return;
 	}
 

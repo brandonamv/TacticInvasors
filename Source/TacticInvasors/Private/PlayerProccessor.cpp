@@ -2,6 +2,7 @@
 
 
 #include "PlayerProccessor.h"
+#include "Spawner.h"
 #include "StrategyPlayer.h" // Add this include to resolve the incomplete type error
 
 void APlayerProccessor::Initialize()
@@ -40,16 +41,38 @@ void APlayerProccessor::Initialize()
 	}
 }
 
+
+
 void APlayerProccessor::ProcessPlayers(AStrategyPlayer* Player1, AStrategyPlayer* Player2)
 {
 	// Existing fitness calculations
     UE_LOG(LogTemp, Warning, TEXT("Processing players: P1 Aggressive: %d, P2 Aggressive: %d"), Player1->IsAggresive() ? 0 : 1,   Player2->IsAggresive() ? 0 : 1);
-    float P1Fitness = Player1->GetFitness() + SInteractionsArray[!Player1->IsAggresive()].Values[!Player2->IsAggresive()];
+
+    float P1Fitness = Player1->GetFitness() + SInteractionsArray[!Player1->IsAggresive()].Values[!Player2->IsAggresive()] - this->M;
 	Player1->SetFitness(P1Fitness);
-    float P2Fitness = Player2->GetFitness() + SInteractionsArray[!Player2->IsAggresive()].Values[!Player1->IsAggresive()];
+
+    float P2Fitness = Player2->GetFitness() + SInteractionsArray[!Player2->IsAggresive()].Values[!Player1->IsAggresive()] - this->M;
 	Player2->SetFitness(P2Fitness);
 
 	UE_LOG(LogTemp, Warning, TEXT("P1 fitness: %f, P2 fitness: %f"), Player1->GetFitness(), Player2->GetFitness());
+}
+
+void APlayerProccessor::ProcessPlayer(AStrategyPlayer* Player)
+{
+    float Pfitness = Player->GetFitness();
+    ASpawner* OwnerSpawner = Cast<ASpawner>(GetOwner());
+    if (Pfitness < 0.0)
+    {
+        Player->SetFitness(this->M);
+        OwnerSpawner->KillPlayer(Player);
+        return;
+    }
+	OwnerSpawner->PushWaitingPlayer(Player);
+    if (Pfitness >= this->MaxFitness)
+    {
+        Player->SetFitness(this->M);
+		OwnerSpawner->SpawnPlayer(Player);
+    }
 }
 
 void APlayerProccessor::ReadFile()
@@ -66,7 +89,7 @@ void APlayerProccessor::ReadFile()
             if (Linea.StartsWith(TEXT("v=")))
             {
                 FString ValorStr = Linea.RightChop(2); // Elimina "V:"
-                V = FCString::Atof(*ValorStr);
+                this->V = FCString::Atof(*ValorStr);
             }
             else if (Linea.StartsWith(TEXT("c=")))
             {
@@ -85,8 +108,8 @@ void APlayerProccessor::ReadFile()
             }
             else if (Linea.StartsWith(TEXT("u=")))
             {
-                FString ValorStr = Linea.RightChop(11); // Elimina "U:"
-                MaxFitness = FCString::Atof(*ValorStr);
+                FString ValorStr = Linea.RightChop(2); // Elimina "U:"
+                this->MaxFitness = FCString::Atof(*ValorStr);
             }
             else
             {

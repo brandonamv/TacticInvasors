@@ -10,12 +10,17 @@ AStrategyPlayer::AStrategyPlayer()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-
 }
 
 bool AStrategyPlayer::InitializeAgent()
 {
 	ASpawner* InSpawner = Cast<ASpawner>(GetOwner());
+	if (!IsValid(InSpawner))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[%s]: InitializeAgent: Owner is not a valid ASpawner."), *GetName());
+		return false;
+	}
+
 	TargetResource = InSpawner->PopFreeResource(this);
 	if (TargetResource)
 	{
@@ -27,6 +32,20 @@ bool AStrategyPlayer::InitializeAgent()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[%s]: No available resources from spawner."), *GetName());
 		return false;
+	}
+}
+
+void AStrategyPlayer::UpdateMeshLocation()
+{
+	UStaticMeshComponent* Mesh = FindComponentByClass<UStaticMeshComponent>();
+	if (Mesh)
+	{
+		FVector ActorLocation = GetActorLocation();
+		Mesh->SetWorldLocation(ActorLocation);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[%s]: UpdateMeshLocation: No static mesh component found."), *GetName());
 	}
 }
 
@@ -67,12 +86,12 @@ void AStrategyPlayer::Tick(float DeltaTime)
 	}
 
 	FVector CurrentPhysicalLocation = Mesh->GetComponentLocation();
+	this->SetActorLocation(CurrentPhysicalLocation); // Sync actor location with physics component
 	FVector GoalLocation = TargetResource->GetActorLocation();
 	const float Distance = FVector::Dist(CurrentPhysicalLocation, GoalLocation);
 	const float StopDistance = 150.0f;
 	if (Distance <= StopDistance)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("target pos actor [%s] mesh [%s]"), *GoalLocation.ToString(), *Mesh->GetComponentLocation().ToString());
 		if (Mesh->IsSimulatingPhysics())
 		{
 			Mesh->SetPhysicsLinearVelocity(FVector::ZeroVector);
@@ -84,7 +103,7 @@ void AStrategyPlayer::Tick(float DeltaTime)
 	}
 
 	FVector Direction = (GoalLocation - CurrentPhysicalLocation).GetSafeNormal();
-	const float Speed = 500.0f; // consider UPROPERTY(EditAnywhere) float MoveSpeed;
+	const float Speed = 500.0f * ASpeed; // consider UPROPERTY(EditAnywhere) float MoveSpeed;
 	FVector TargetVelocity = Direction * Speed;
 	TargetVelocity.Z = Mesh->GetComponentVelocity().Z;
 

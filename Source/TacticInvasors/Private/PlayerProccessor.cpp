@@ -48,10 +48,10 @@ void APlayerProccessor::ProcessPlayers(AStrategyPlayer* Player1, AStrategyPlayer
 	// Existing fitness calculations
     UE_LOG(LogTemp, Warning, TEXT("Processing players: P1 Aggressive: %d, P2 Aggressive: %d"), Player1->IsAggresive() ? 0 : 1,   Player2->IsAggresive() ? 0 : 1);
 
-    float P1Fitness = Player1->GetFitness() + SInteractionsArray[!Player1->IsAggresive()].Values[!Player2->IsAggresive()] - this->M;
+    float P1Fitness = Player1->GetFitness() + SInteractionsArray[!Player1->IsAggresive()].Values[!Player2->IsAggresive()];
 	Player1->SetFitness(P1Fitness);
 
-    float P2Fitness = Player2->GetFitness() + SInteractionsArray[!Player2->IsAggresive()].Values[!Player1->IsAggresive()] - this->M;
+    float P2Fitness = Player2->GetFitness() + SInteractionsArray[!Player2->IsAggresive()].Values[!Player1->IsAggresive()];
 	Player2->SetFitness(P2Fitness);
 
 	UE_LOG(LogTemp, Warning, TEXT("P1 fitness: %f, P2 fitness: %f"), Player1->GetFitness(), Player2->GetFitness());
@@ -63,16 +63,23 @@ void APlayerProccessor::ProcessPlayer(AStrategyPlayer* Player)
     ASpawner* OwnerSpawner = Cast<ASpawner>(GetOwner());
     if (Pfitness < 0.0)
     {
-        Player->SetFitness(this->M);
+        Player->SetFitness(this->I);
         OwnerSpawner->KillPlayer(Player);
         return;
     }
 	OwnerSpawner->PushWaitingPlayer(Player);
+
     if (Pfitness >= this->MaxFitness)
     {
-        Player->SetFitness(this->M);
+        Player->SetFitness(this->I);
 		OwnerSpawner->SpawnPlayer(Player);
     }
+}
+
+void APlayerProccessor::DailyPenalty(AStrategyPlayer* Player)
+{
+    float NewFitness = Player->GetFitness() - this->M;
+    Player->SetFitness(NewFitness);
 }
 
 void APlayerProccessor::ReadFile()
@@ -100,6 +107,21 @@ void APlayerProccessor::ReadFile()
             {
                 FString ValorStr = Linea.RightChop(2); // Elimina "M:"
                 M = FCString::Atof(*ValorStr);
+            }
+            else if (Linea.StartsWith(TEXT("i=")))
+            {
+                FString ValorStr = Linea.RightChop(2); // Elimina "I:"
+                I = FCString::Atof(*ValorStr);
+            }
+            else if (Linea.StartsWith(TEXT("s=")))
+            {
+                FString ValorStr = Linea.RightChop(2); // Elimina "S:"
+                Speed = FCString::Atof(*ValorStr);
+            }
+            else if (Linea.StartsWith(TEXT("p=")))
+            {
+                FString ValorStr = Linea.RightChop(2); // Elimina "S:"
+                MaxIteractions = FCString::Atoi(*ValorStr);
             }
             else if (Linea.StartsWith(TEXT("r=")))
             {

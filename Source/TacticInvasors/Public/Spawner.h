@@ -2,13 +2,18 @@
 
 #pragma once
 
+
+#include "Containers/Queue.h"
+
 #include "CoreMinimal.h"
 #include "GameFramework/Info.h"
 #include "Spawner.generated.h"
+
 class APasive;
 class AAgresive;
 class AResource;
 class AStrategyPlayer;
+class APlayerProccessor;
 /**
  * 
  */
@@ -20,9 +25,12 @@ class TACTICINVASORS_API ASpawner : public AInfo
 public:
     ASpawner();
     void PushFreeResource(AResource* Resource);
-    AResource* PopFreeResource();
+    AResource* PopFreeResource(AStrategyPlayer* Player);
 	void PushFreePlayer(AStrategyPlayer* Player);
-
+	void PushWaitingPlayer(AStrategyPlayer* Player);
+	void ProcessPlayers(AStrategyPlayer* Player1, AStrategyPlayer* Player2);
+    void SpawnPlayer(AStrategyPlayer* Player);
+	void KillPlayer(AStrategyPlayer* Player);
 
 protected:
     virtual void BeginPlay() override;
@@ -61,26 +69,31 @@ private:
 
     void SpawnAgents();
     void AssignFreePlayers();
+
     UPROPERTY()
 	bool bSpawningAgents = false;
 
-    UPROPERTY()
     TArray<AResource*> SFreeResources;
+	TArray<AResource*> SActiveResources;
+
+    TArray<AStrategyPlayer*> SActivePlayers;
+
+    TQueue<AStrategyPlayer*> QWaitingPlayers;
+	int32 CurrentWaitingPlayers = 0;
 
     UPROPERTY()
-	TArray<AStrategyPlayer*> SFreePlayers;
+    int32 CurrentAgresivePlayers = 0;
 
     UPROPERTY()
-    TArray<APasive*> SAlivePasives;
+    int32 CurrentPasivePlayers = 0;
 
     UPROPERTY()
-    TArray<APasive*> SDeadPasives;
-
-    UPROPERTY()
-    TArray<AAgresive*> SAliveAgresives;
+	TArray<APasive*> SDeadPasives;
 
     UPROPERTY()
     TArray<AAgresive*> SDeadAgresives;
 
-
+    UPROPERTY()
+    APlayerProccessor* APlayerProcessor = nullptr;
 };
+

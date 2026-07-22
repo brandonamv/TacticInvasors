@@ -3,6 +3,7 @@
 
 #include "Resource.h"
 #include "Spawner.h"
+#include "StrategyPlayer.h"
 // Sets default values
 AResource::AResource()
 {
@@ -29,12 +30,13 @@ bool AResource::Aviable()
 	return !bPlayer1 || !bPlayer2;
 }
 
-void AResource::SetPlayer()
+void AResource::SetAsigned(AStrategyPlayer* Player)
 {
 	if (!bPlayer1)
 	{
 		bPlayer1 = true;
 		bTaked1 = false;
+		APlayer1 = Player;
 		return;
 	}
 	if (!bPlayer2)
@@ -45,8 +47,10 @@ void AResource::SetPlayer()
 
 }
 
-void AResource::SetTaked()
+void AResource::SetTaked(AStrategyPlayer* Player)
 {
+	ASpawner* OwnerSpawner = Cast<ASpawner>(GetOwner());
+	OwnerSpawner->PushFreePlayer(Player);
 	if (!bTaked1)
 	{
 		bTaked1 = true;

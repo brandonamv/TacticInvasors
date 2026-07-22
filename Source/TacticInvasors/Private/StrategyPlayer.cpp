@@ -13,22 +13,20 @@ AStrategyPlayer::AStrategyPlayer()
 
 }
 
-void AStrategyPlayer::InitializeAgent(ASpawner* InSpawner)
+bool AStrategyPlayer::InitializeAgent()
 {
-	if (!InSpawner)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[%s]: Spawner is null. Cannot initialize agent."), *GetName());
-		return;
-	}
-	TargetResource = InSpawner->PopFreeResource();
+	ASpawner* InSpawner = Cast<ASpawner>(GetOwner());
+	TargetResource = InSpawner->PopFreeResource(this);
 	if (TargetResource)
 	{
 		bHasTarget = true;
 		UE_LOG(LogTemp, Log, TEXT("[%s]: Assigned target resource [%s]."), *GetName(), *TargetResource->GetName());
+		return true;
 	}
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[%s]: No available resources from spawner."), *GetName());
+		return false;
 	}
 }
 
@@ -80,13 +78,8 @@ void AStrategyPlayer::Tick(float DeltaTime)
 			Mesh->SetPhysicsLinearVelocity(FVector::ZeroVector);
 			Mesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
 		}
-		TargetResource->SetTaked();
+		TargetResource->SetTaked(this);
 		bHasTarget = false;
-		ASpawner* OwnerSpawner = Cast<ASpawner>(GetOwner());
-		if (IsValid(OwnerSpawner))
-		{
-			OwnerSpawner->PushFreePlayer(this);
-		}
 		return;
 	}
 

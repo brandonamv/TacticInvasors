@@ -1,66 +1,84 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
+
 #include "PlayerProccessor.h"
 #include "Spawner.h"
-#include "StrategyPlayer.h" // Add this include to resolve the incomplete type error
+#include "StrategyPlayer.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "HAL/PlatformFileManager.h"
+#include "Misc/Char.h" // For FChar::IsDigit, FChar::IsWhitespace
+#include "Math/UnrealMathUtility.h" // For FMath::Pow
+#include "Containers/UnrealString.h"
 
 void APlayerProccessor::Initialize()
 {
-    ReadFile();
-    // Log SInteractionsArray matrix
-	if (SInteractionsArray.Num() == 0)
-	{
-		UE_LOG(LogTemp, Log, TEXT("SInteractionsArray is empty."));
-	}
-	else
-	{
-		FString MatrixStr = TEXT("SInteractionsArray matrix:\n");
-		for (int32 Row = 0; Row < SInteractionsArray.Num(); ++Row)
-		{
-			const FFloatArray& RowArray = SInteractionsArray[Row];
-			FString RowStr = FString::Printf(TEXT("Row %d: ["), Row);
-			for (int32 Col = 0; Col < RowArray.Values.Num(); ++Col)
-			{
-				// Safely access value (we already have Col within range)
-				float Val = RowArray.Values[Col];
-				// Append value with comma separation
-				if (Col == 0)
-				{
-					RowStr += FString::Printf(TEXT("%f"), Val);
-				}
-				else
-				{
-					RowStr += FString::Printf(TEXT(", %f"), Val);
-				}
-			}
-			RowStr += TEXT("]\n");
-			MatrixStr += RowStr;
-		}
-		UE_LOG(LogTemp, Log, TEXT("%s"), *MatrixStr);
-	}
+        ReadFile();
 }
 
 
 
 void APlayerProccessor::ProcessPlayers(AStrategyPlayer* Player1, AStrategyPlayer* Player2)
 {
-	// Existing fitness calculations
-    UE_LOG(LogTemp, Warning, TEXT("Processing players: P1 Aggressive: %d, P2 Aggressive: %d"), Player1->IsAggresive() ? 0 : 1,   Player2->IsAggresive() ? 0 : 1);
 
-    float P1Fitness = Player1->GetFitness() + SInteractionsArray[!Player1->IsAggresive()].Values[!Player2->IsAggresive()];
-	Player1->SetFitness(P1Fitness);
+    if (!IsValid(Player1) || !IsValid(Player2))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("ProcessPlayers called with invalid player(s)."));
+        return;
+    }
 
-    float P2Fitness = Player2->GetFitness() + SInteractionsArray[!Player2->IsAggresive()].Values[!Player1->IsAggresive()];
-	Player2->SetFitness(P2Fitness);
+    // Resolve row/column indices in a clear, safe way
+    const int32 Row = Player1->IsAggresive() ? 0 : 1;
+    const int32 Col = Player2->IsAggresive() ? 0 : 1;
 
-	UE_LOG(LogTemp, Warning, TEXT("P1 fitness: %f, P2 fitness: %f"), Player1->GetFitness(), Player2->GetFitness());
+    float InteractionValue1 = 0.0f;
+    if (SInteractionsArray.IsValidIndex(Row) && SInteractionsArray[Row].Values.IsValidIndex(Col))
+    {
+        InteractionValue1 = SInteractionsArray[Row].Values[Col];
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Missing interaction entry for Row=%d Col=%d; defaulting to 0."), Row, Col);
+    }
+
+    float P1Fitness = Player1->GetFitness() + InteractionValue1;
+    Player1->SetFitness(P1Fitness);
+
+    // Symmetric for player2
+    const int32 Row2 = Player2->IsAggresive() ? 0 : 1;
+    const int32 Col2 = Player1->IsAggresive() ? 0 : 1;
+
+    float InteractionValue2 = 0.0f;
+    if (SInteractionsArray.IsValidIndex(Row2) && SInteractionsArray[Row2].Values.IsValidIndex(Col2))
+    {
+        InteractionValue2 = SInteractionsArray[Row2].Values[Col2];
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Missing interaction entry for Row=%d Col=%d; defaulting to 0."), Row2, Col2);
+    }
+
+    float P2Fitness = Player2->GetFitness() + InteractionValue2;
+    Player2->SetFitness(P2Fitness);
 }
 
 void APlayerProccessor::ProcessPlayer(AStrategyPlayer* Player)
 {
+    if (!IsValid(Player))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("ProcessPlayer called with null or invalid Player"));
+        return;
+    }
+
     float Pfitness = Player->GetFitness();
     ASpawner* OwnerSpawner = Cast<ASpawner>(GetOwner());
+    if (!IsValid(OwnerSpawner))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("ProcessPlayer: Owner spawner is invalid; skipping processing for %s"), *Player->GetName());
+        return;
+    }
+
     if (Pfitness < 0.0)
     {
         Player->SetFitness(this->I);
@@ -84,98 +102,170 @@ void APlayerProccessor::DailyPenalty(AStrategyPlayer* Player)
 
 void APlayerProccessor::ReadFile()
 {
-    FString RutaArchivo = FPaths::ProjectSavedDir() / TEXT("matrix.txt");
-    TArray<FString> Lineas;
+    const FString ProjectDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
+    const FString SavedDir = FPaths::Combine(ProjectDir, TEXT("Saved"));
+    const FString FilePath = FPaths::Combine(SavedDir, TEXT("matrix.txt"));
 
-    // LoadFileToStringArray divide el archivo automáticamente por cada salto de línea
-    if (FFileHelper::LoadFileToStringArray(Lineas, *RutaArchivo))
+    IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+
+    if (!PlatformFile.DirectoryExists(*SavedDir))
     {
-        for (const FString& Linea : Lineas)
+        if (!PlatformFile.CreateDirectoryTree(*SavedDir))
         {
-            UE_LOG(LogTemp, Log, TEXT("Línea leida: %s"), *Linea);
-            if (Linea.StartsWith(TEXT("v=")))
+            UE_LOG(LogTemp, Error, TEXT("ReadFile: Failed to create Saved directory: %s"), *SavedDir);
+            return;
+        }
+    }
+
+    // Ensure file exists with safe default content
+    if (!PlatformFile.FileExists(*FilePath))
+    {
+        const FString DefaultContent = TEXT("1 0 0\n0 1 0\n0 0 1");
+        if (!FFileHelper::SaveStringToFile(DefaultContent, *FilePath))
+        {
+            UE_LOG(LogTemp, Error, TEXT("ReadFile: Failed to write default matrix to %s"), *FilePath);
+            return;
+        }
+    }
+    TArray<FString> Lines;
+    if (!FFileHelper::LoadFileToStringArray(Lines, *FilePath))
+    {
+        UE_LOG(LogTemp, Error, TEXT("ReadFile: Failed to load file: %s"), *FilePath);
+        return;
+    }
+
+    // Reset arrays/state before parsing to allow repeated calls
+    SInteractionsArray.Empty();
+    InitialAgresivePlayers = 0;
+    InitialPasivePlayers = 0;
+    AInitialFitness = 0.0f;
+    PInitialFitness = 0.0f;
+
+    for (const FString& LineRaw : Lines)
+    {
+        const FString Line = LineRaw.TrimStartAndEnd();
+        if (Line.IsEmpty()) continue;
+
+        UE_LOG(LogTemp, Log, TEXT("ReadFile: Line read: %s"), *Line);
+
+        if (Line.StartsWith(TEXT("v=")))
+        {
+            const FString ValueStr = Line.Mid(2).TrimStartAndEnd();
+            V = FCString::Atof(*ValueStr);
+            continue;
+        }
+        if (Line.StartsWith(TEXT("c=")))
+        {
+            const FString ValueStr = Line.Mid(2).TrimStartAndEnd();
+            C = FCString::Atof(*ValueStr);
+            continue;
+        }
+        if (Line.StartsWith(TEXT("m=")))
+        {
+            const FString ValueStr = Line.Mid(2).TrimStartAndEnd();
+            M = FCString::Atof(*ValueStr);
+            continue;
+        }
+        if (Line.StartsWith(TEXT("i=")))
+        {
+            const FString ValueStr = Line.Mid(2).TrimStartAndEnd();
+            I = FCString::Atof(*ValueStr);
+            continue;
+        }
+        if (Line.StartsWith(TEXT("s=")))
+        {
+            const FString ValueStr = Line.Mid(2).TrimStartAndEnd();
+            Speed = FCString::Atof(*ValueStr);
+            continue;
+        }
+        if (Line.StartsWith(TEXT("p=")))
+        {
+            const FString ValueStr = Line.Mid(2).TrimStartAndEnd();
+            MaxIteractions = FCString::Atoi(*ValueStr);
+            continue;
+        }
+        if (Line.StartsWith(TEXT("r=")))
+        {
+            const FString ValueStr = Line.Mid(2).TrimStartAndEnd();
+            bResourceFilling = ValueStr.ToBool();
+            continue;
+        }
+        if (Line.StartsWith(TEXT("u=")))
+        {
+            const FString ValueStr = Line.Mid(2).TrimStartAndEnd();
+            MaxFitness = FCString::Atof(*ValueStr);
+            continue;
+        }
+
+        // Interaction lines: expected format example:
+        // "0=exprA;exprB;...;AInitialFitness;InitialPlayers" or "1=..."
+        bool bAgresive = false;
+        if (Line.StartsWith(TEXT("0=")))
+        {
+            bAgresive = true;
+        }
+        else if (Line.StartsWith(TEXT("1=")))
+        {
+            bAgresive = false;
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("ReadFile: Unrecognized line prefix: %s"), *Line);
+            continue;
+        }
+
+        const FString Content = Line.Mid(2);
+        TArray<FString> Parts;
+        Content.ParseIntoArray(Parts, TEXT(";"), /*CullEmpty=*/ true);
+
+        // Expect at least two interaction expressions and two trailing numeric values (indices 3 and 4 in original code)
+        if (Parts.Num() < 3)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("ReadFile: Interaction line has insufficient parts (%d): %s"), Parts.Num(), *Line);
+            // still attempt to parse whatever interaction expressions are present
+        }
+
+        FFloatArray InteractionArray;
+        // Parse first two expressions as interaction matrix row values (guard indices)
+        for (int32 i = 0; i < 2; ++i)
+        {
+            if (Parts.IsValidIndex(i))
             {
-                FString ValorStr = Linea.RightChop(2); // Elimina "V:"
-                this->V = FCString::Atof(*ValorStr);
-            }
-            else if (Linea.StartsWith(TEXT("c=")))
-            {
-                FString ValorStr = Linea.RightChop(2); // Elimina "C:"
-                C = FCString::Atof(*ValorStr);
-            }
-            else if (Linea.StartsWith(TEXT("m=")))
-            {
-                FString ValorStr = Linea.RightChop(2); // Elimina "M:"
-                M = FCString::Atof(*ValorStr);
-            }
-            else if (Linea.StartsWith(TEXT("i=")))
-            {
-                FString ValorStr = Linea.RightChop(2); // Elimina "I:"
-                I = FCString::Atof(*ValorStr);
-            }
-            else if (Linea.StartsWith(TEXT("s=")))
-            {
-                FString ValorStr = Linea.RightChop(2); // Elimina "S:"
-                Speed = FCString::Atof(*ValorStr);
-            }
-            else if (Linea.StartsWith(TEXT("p=")))
-            {
-                FString ValorStr = Linea.RightChop(2); // Elimina "S:"
-                MaxIteractions = FCString::Atoi(*ValorStr);
-            }
-            else if (Linea.StartsWith(TEXT("r=")))
-            {
-                FString ValorStr = Linea.RightChop(2); // Elimina "R:"
-                bResourceFilling = ValorStr.ToBool();
-            }
-            else if (Linea.StartsWith(TEXT("u=")))
-            {
-                FString ValorStr = Linea.RightChop(2); // Elimina "U:"
-                this->MaxFitness = FCString::Atof(*ValorStr);
+                const FString Expr = Parts[i].TrimStartAndEnd();
+                const float Eval = ShuntingYard(Expr);
+                InteractionArray.Values.Add(Eval);
+                UE_LOG(LogTemp, Log, TEXT("ReadFile: Interaction expr[%d]='%s' => %f"), i, *Expr, Eval);
             }
             else
             {
-                bool bAgresive = false;
-                if (Linea.StartsWith(TEXT("0=")))
-                {
-                    bAgresive = true;
-                }
-                else if (Linea.StartsWith(TEXT("1=")))
-                {
-                    bAgresive = false;
-                }
-                else
-                {
-                    UE_LOG(LogTemp, Warning, TEXT("Línea no reconocida: %s"), *Linea);
-                    continue; // Salta líneas que no comienzan con A: o P:
-                }
-                FFloatArray InteractionArray;
-                TArray<FString> ValoresStr;
-                FString Content = Linea.RightChop(2); // Elimina el prefijo "0=" o "1="
-                Content.ParseIntoArray(ValoresStr, TEXT(";"), true);
-                for (int32 i = 0; i < 2 && i < ValoresStr.Num(); i++)
-                {
-                    InteractionArray.Values.Add(ShuntingYard(ValoresStr[i]));
-					UE_LOG(LogTemp, Log, TEXT("Interaction value for %s: %f"), *ValoresStr[i], InteractionArray.Values.Last());
-                }
-                SInteractionsArray.Add(InteractionArray);
-                if (bAgresive)
-                {
-                    AInitialFitness = FCString::Atof(*ValoresStr[3]);
-                    InitialAgresivePlayers = FCString::Atoi(*ValoresStr[4]);
-                }
-                else {
-                    PInitialFitness = FCString::Atof(*ValoresStr[3]);
-                    InitialPasivePlayers = FCString::Atoi(*ValoresStr[4]);
-                }
-
+                InteractionArray.Values.Add(0.0f);
+                UE_LOG(LogTemp, Warning, TEXT("ReadFile: Missing interaction part %d for line: %s"), i, *Line);
             }
         }
-    }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("Error al cargar las líneas del archivo."));
-    }
+
+        SInteractionsArray.Add(InteractionArray);
+
+        if (Parts.IsValidIndex(2))
+        {
+            const FString CountStr = Parts[2].TrimStartAndEnd();
+            const int32 CountVal = FCString::Atoi(*CountStr);
+            if (bAgresive)
+            {
+                InitialAgresivePlayers = CountVal;
+            }
+            else
+            {
+                InitialPasivePlayers = CountVal;
+            }
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("ReadFile: Missing initial players value (index 4) in line: %s"), *Line);
+        }
+    } // end for lines
+
+    UE_LOG(LogTemp, Log, TEXT("ReadFile: Parsed interactions rows = %d ; InitialAgg=%d InitialPas=%d"), SInteractionsArray.Num(), InitialAgresivePlayers, InitialPasivePlayers);
+
 }
 
 float APlayerProccessor::ApplyOp(char InOp, float B, float A)

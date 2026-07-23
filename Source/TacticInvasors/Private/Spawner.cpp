@@ -31,21 +31,24 @@ void ASpawner::PushFreeResource(AResource* Resource)
 }
 AResource* ASpawner::PopFreeResource(AStrategyPlayer* Player)
 {
+    // Pop from active list (use Last element semantics) but keep consistent types
     if (SActiveResources.Num() == 0)
     {
         return nullptr;
     }
 
-    TWeakObjectPtr<AResource> WeakRes = SActiveResources.Pop();
-    AResource* Resource = WeakRes.Get();
+    // Pop the last active resource
+    AResource* Resource = SActiveResources.Pop();
     if (!IsValid(Resource))
     {
+        UE_LOG(LogTemp, Warning, TEXT("PopFreeResource: popped invalid resource."));
         return nullptr;
     }
 
     // Claim one player slot on the resource
     Resource->SetAsigned(Player);
-    // If resource still has free slots, put it back into pool
+
+    // If resource still has free slots, put it back into the active pool
     if (Resource->Aviable())
     {
         UStaticMeshComponent* Mesh = Resource->FindComponentByClass<UStaticMeshComponent>();
@@ -54,8 +57,8 @@ AResource* ASpawner::PopFreeResource(AStrategyPlayer* Player)
             FMath::FRandRange(-SpawnAreaSize.X, SpawnAreaSize.X),
             FMath::FRandRange(-SpawnAreaSize.Y, SpawnAreaSize.Y),
             150.0f
-        );        
-		Resource->SetActorLocation(SpawnLocation);
+        );
+        Resource->SetActorLocation(SpawnLocation);
         if (Mesh)
         {
             Mesh->SetWorldLocation(SpawnLocation);
@@ -63,8 +66,18 @@ AResource* ASpawner::PopFreeResource(AStrategyPlayer* Player)
         }
         SActiveResources.Add(Resource);
     }
-    else {
-		this->ProcessPlayers(Player, Resource->APlayer1);
+    else
+    {
+        // When resource is full, start processing the two players
+        // Ensure resource->APlayer1 and resource->APlayer2 are valid
+        if (Resource->APlayer1 && Resource->APlayer2)
+        {
+            this->ProcessPlayers(Player, Resource->APlayer1);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("PopFreeResource: Resource full but one or both players null."));
+        }
     }
 
     return Resource;
@@ -77,11 +90,17 @@ void ASpawner::PushFreePlayer(AStrategyPlayer* Player)
         return;
     }
 
-    this->SActivePlayers.Pop();
-	APlayerProcessor->ProcessPlayer(Player);
+    SActivePlayers.Pop();
 
-    UE_LOG(LogTemp, Log, TEXT("Player free [%s]: Active Players %d"),
-        *Player->GetName(), SActivePlayers.Num());
+    // Safely call processor if available
+    if (IsValid(APlayerProcessor))
+    {
+        APlayerProcessor->ProcessPlayer(Player);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("PushFreePlayer: APlayerProcessor is null. Player=%s"), *Player->GetName());
+    }
 
     if (!this->SActivePlayers.IsEmpty())
     {
@@ -91,7 +110,6 @@ void ASpawner::PushFreePlayer(AStrategyPlayer* Player)
     // Schedule a non-blocking delayed call instead of blocking the game thread
     if (UWorld* World = GetWorld())
     {
-        // Avoid scheduling multiple timers if one is already active
         if (!World->GetTimerManager().IsTimerActive(SpawnPlayersTimerHandle))
         {
             World->GetTimerManager().SetTimer(SpawnPlayersTimerHandle, this, &ASpawner::AssignFreePlayers, 2.0f, false);
@@ -105,48 +123,50 @@ void ASpawner::PushWaitingPlayer(AStrategyPlayer* Player)
     {
         return;
     }
-    this->QWaitingPlayers.Enqueue(Player);
-	this->CurrentWaitingPlayers++;
+    this->SFreePlayers.Add(Player);
 }
 
 void ASpawner::AssignFreePlayers()
 {
-    if (bSpawningAgents)
-    {
-        return;
-    }
-
     UWorld* World = GetWorld();
     if (!World) return;
 
-    bSpawningAgents = true;
-	UE_LOG(LogTemp, Log, TEXT("Spawner [%s]: Assigning free players. Current waiting players: %d"), *GetName(), CurrentWaitingPlayers);
-	UE_LOG(LogTemp, Log, TEXT("Spawner [%s]: Free resources available: %d\n\n"), *GetName(), SFreeResources.Num());
+    if (CurrentIteration > MaxIterations) 
+    {
+        return;
+    }
+    else
+    {
+        CurrentIteration++;
+    }
+
     FActorSpawnParameters SpawnParams;
     SpawnParams.Owner = this;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
     FVector BaseLocation = SpawnerCenterLocation.IsZero() ? GetActorLocation() : SpawnerCenterLocation;
     FRotator SpawnRotation = FRotator::ZeroRotator;
 
-    int32 ResourcesNeed = this->CurrentWaitingPlayers / 2;
+    const int32 ResourcesNeed = SFreePlayers.Num() / 2;
+
+    // Ensure we have at least ResourcesNeed resources: spawn missing ones if class available
     if (ResourcesNeed > SFreeResources.Num())
     {
-		UE_LOG(LogTemp, Log, TEXT("Spawner [%s]: Not enough free resources. Need: %d, Available: %d"), *GetName(), ResourcesNeed, SFreeResources.Num());
+        UE_LOG(LogTemp, Log, TEXT("Spawner [%s]: Not enough free resources. Need: %d, Available: %d"), *GetName(), ResourcesNeed, SFreeResources.Num());
         if (!ResourceClass)
         {
             UE_LOG(LogTemp, Warning, TEXT("Spawner [%s]: ResourceClass is not set, cannot spawn resources."), *GetName());
         }
         else
         {
-            int32 ToSpawn = ResourcesNeed - SFreeResources.Num();
+            const int32 ToSpawn = ResourcesNeed - SFreeResources.Num();
+            SFreeResources.Reserve(SFreeResources.Num() + ToSpawn);
             for (int32 i = 0; i < ToSpawn; ++i)
             {
                 AResource* NewResource = World->SpawnActor<AResource>(ResourceClass, BaseLocation, SpawnRotation, SpawnParams);
                 if (NewResource)
                 {
-                    this->SFreeResources.Push(NewResource);
-					NewResource->SetActorHiddenInGame(true);
-                    UE_LOG(LogTemp, Log, TEXT("Spawner [%s]: Successfully spawned %s"), *GetName(), *NewResource->GetName());
+                    NewResource->SetActorHiddenInGame(true);
+                    SFreeResources.Push(NewResource);
                 }
                 else
                 {
@@ -155,54 +175,61 @@ void ASpawner::AssignFreePlayers()
             }
         }
     }
-	int32 TotalResources = SFreeResources.Num();
-    for (int32 i = 0; i < TotalResources; i++)
+
+    // Activate exactly the number of resources we need (or as many as available)
+    const int32 ActivateCount = FMath::Min(ResourcesNeed, SFreeResources.Num());
+    for (int32 i = 0; i < ActivateCount; ++i)
     {
-        AResource* Resource = this->SFreeResources.Pop();
-        if (i < ResourcesNeed)
+        AResource* Resource = SFreeResources.Pop();
+        if (IsValid(Resource))
         {
-            this->SActiveResources.Push(Resource);
             Resource->SetActorHiddenInGame(false);
+            SActiveResources.Push(Resource);
         }
-        else {
-            this->SFreeResources.Push(Resource);
-            Resource->SetActorHiddenInGame(true);
-        }
-        
     }
 
-
-    for (AAgresive* Agresive : SDeadAgresives)
+    // Ensure remaining free resources are hidden
+    for (AResource* Remaining : SFreeResources)
     {
-        Agresive->SetActorHiddenInGame(true);
-    }
-    for (APasive* Pasive : SDeadPasives)
-    {
-        Pasive->SetActorHiddenInGame(true);
-    }
-
-	TArray<AStrategyPlayer*> PlayersToWait;
-	AStrategyPlayer* Player;
-    while (this->QWaitingPlayers.Dequeue(Player))
-    {
-		Player->SetActorHiddenInGame(false);
-        this->CurrentWaitingPlayers--;
-        if (Player->InitializeAgent())
+        if (IsValid(Remaining))
         {
-			this->SActivePlayers.Add(Player);
-        }
-        else {
-			PlayersToWait.Add(Player);
+            Remaining->SetActorHiddenInGame(true);
         }
     }
 
-    for (AStrategyPlayer* PlayerToWait : PlayersToWait)
+    // Hide dead players (reuse list elements safely)
+    for (AAgresive* DeadA : SDeadAgresives)
     {
-        this->QWaitingPlayers.Enqueue(PlayerToWait);
-        this->CurrentWaitingPlayers++;
-	}
+        if (IsValid(DeadA)) DeadA->SetActorHiddenInGame(true);
+    }
+    for (APasive* DeadP : SDeadPasives)
+    {
+        if (IsValid(DeadP)) DeadP->SetActorHiddenInGame(true);
+    }
 
-    bSpawningAgents = false;
+    // Shuffle free players and initialize them: move initialized ones to active, keep others waiting
+    ShuffleArray(SFreePlayers);
+    TArray<AStrategyPlayer*> PlayersToWait;
+    PlayersToWait.Reserve(SFreePlayers.Num());
+
+    while (!SFreePlayers.IsEmpty())
+    {
+        AStrategyPlayer* Player = SFreePlayers.Pop();
+        if (IsValid(Player) && Player->InitializeAgent())
+        {
+            SActivePlayers.Push(Player);
+        }
+        else
+        {
+            PlayersToWait.Push(Player);
+        }
+    }
+
+    // Return the waiting players to the free list (preserve order not required)
+    if (!PlayersToWait.IsEmpty())
+    {
+        SFreePlayers.Append(PlayersToWait);
+    }
 }
 
 ASpawner::ASpawner()
@@ -228,111 +255,132 @@ void ASpawner::BeginPlay()
             APlayerProcessor->Initialize();
             InitialAgresivePlayers = APlayerProcessor->GetInitialAgresivePlayers();
             InitialPasivePlayers = APlayerProcessor->GetInitialPasivePlayers();
+            MaxIterations = APlayerProcessor->GetMaxIteractions();
+            Speed = APlayerProcessor->GetSpeed();
 		}
     }
     this->SpawnAgents();
 }
 
+// Replacement: SpawnAgents method refactor for clearer, safer spawning and less duplication.
 void ASpawner::SpawnAgents()
 {
-    UE_LOG(LogTemp, Log, TEXT("initial agresive: %d, initial pasive: %d"), InitialAgresivePlayers, InitialPasivePlayers);
-    UWorld* World = GetWorld();
-    if (!World) return;
+    // Plan (pseudocode):
+    // 1. Validate World and compute BaseLocation & SpawnRotation.
+    // 2. Prepare SpawnParams and compute InitialResourcePlayers (at least 1).
+    // 3. Reserve space in SFreeResources to avoid reallocations.
+    // 4. Provide a small helper to compute randomized spawn locations.
+    // 5. Spawn resources in one block if ResourceClass is valid; log once if missing.
+    // 6. Spawn aggressive players in one loop, logging failures but avoiding per-iteration class checks.
+    // 7. Spawn passive players in one loop, same pattern.
+    // 8. Call AssignFreePlayers() at the end.
+    // The goal: reduce duplication, check classes once, keep behavior identical.
 
-    // Si no has configurado SpawnerCenterLocation, usamos la posición del Actor en el mapa
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return;
+    }
+
     FVector BaseLocation = SpawnerCenterLocation.IsZero() ? GetActorLocation() : SpawnerCenterLocation;
     FRotator SpawnRotation = FRotator::ZeroRotator;
 
     FActorSpawnParameters SpawnParams;
     SpawnParams.Owner = this;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-    InitialResourcePlayers = FMath::Max((InitialAgresivePlayers + InitialPasivePlayers) / 2, 1); // Aseguramos al menos un recurso
 
-    for (int32 x = 0; x < InitialResourcePlayers; x++)
+    // Ensure at least one resource is available
+    InitialResourcePlayers = FMath::Max((InitialAgresivePlayers + InitialPasivePlayers) / 2, 1);
+
+    // Reserve to reduce reallocations
+    SFreeResources.Reserve(SFreeResources.Num() + InitialResourcePlayers);
+
+    // Helper: random location generator
+    auto RandomPlayerLocation = [&](float AreaMultiplier = 2.0f)->FVector
     {
-        // Validamos que tengamos una clase válida asignada antes de spawnear
-        if (ResourceClass)
-        {
-			AResource* NewResource = World->SpawnActor<AResource>(ResourceClass, BaseLocation, SpawnRotation, SpawnParams);
-            if (NewResource)
-            {
-                this->SFreeResources.Push(NewResource);
-                NewResource->SetActorHiddenInGame(true);
-                UE_LOG(LogTemp, Log, TEXT("Spawner [%s]: Successfully spawned %s"),
-                    *GetName(), *NewResource->GetName());
-            }
-        }
-        else
-        {
-            UE_LOG(LogTemp, Warning, TEXT("Spawner [%s]: No se ha asignado una PasiveClass en el Blueprint."), *GetName());
-            break;
-        }
-    }
-    int32 ITotalAgents = InitialAgresivePlayers + InitialPasivePlayers;
-    int32 ISpawnedAgents = 0;
-    int32 IMaxAgresives = InitialAgresivePlayers;
-    int32 IMaxPasives = InitialPasivePlayers;
-    bool bSpawningAgresives = true;
-    while (ISpawnedAgents < ITotalAgents)
-    {
-        FVector SpawnLocation = BaseLocation + FVector(
-            FMath::FRandRange(-SpawnAreaSize.X * 2, SpawnAreaSize.X * 2),
-            FMath::FRandRange(-SpawnAreaSize.Y * 2, SpawnAreaSize.Y * 2),
+        return BaseLocation + FVector(
+            FMath::FRandRange(-SpawnAreaSize.X * AreaMultiplier, SpawnAreaSize.X * AreaMultiplier),
+            FMath::FRandRange(-SpawnAreaSize.Y * AreaMultiplier, SpawnAreaSize.Y * AreaMultiplier),
             FMath::FRandRange(50.0f, 50.0f + SpawnAreaSize.Z)
         );
-        if (bSpawningAgresives)
-        {
-            if (IMaxAgresives == 0)
-            {
-                bSpawningAgresives = false;
-                continue;
-            }
-            AAgresive* NewAgresive = World->SpawnActor<AAgresive>(AgresiveClass, SpawnLocation, SpawnRotation, SpawnParams);
+    };
 
+    // Spawn resources if class provided, log once if not
+    if (!ResourceClass)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Spawner [%s]: ResourceClass is not set, cannot spawn resources."), *GetName());
+    }
+    else
+    {
+        for (int32 i = 0; i < InitialResourcePlayers; ++i)
+        {
+            AResource* NewResource = World->SpawnActor<AResource>(ResourceClass, BaseLocation, SpawnRotation, SpawnParams);
+            if (NewResource)
+            {
+                SFreeResources.Push(NewResource);
+                NewResource->SetActorHiddenInGame(true);
+            }
+            else
+            {
+                UE_LOG(LogTemp, Warning, TEXT("Spawner [%s]: Failed to spawn Resource (index %d)"), *GetName(), i);
+            }
+        }
+    }
+
+    // Spawn aggressive players
+    if (!AgresiveClass)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Spawner [%s]: AgresiveClass is not set, skipping aggressive player spawn."), *GetName());
+    }
+    else
+    {
+        SFreePlayers.Reserve(SFreePlayers.Num() + InitialAgresivePlayers);
+        for (int32 i = 0; i < InitialAgresivePlayers; ++i)
+        {
+            FVector SpawnLocation = RandomPlayerLocation(2.0f);
+            AAgresive* NewAgresive = World->SpawnActor<AAgresive>(AgresiveClass, SpawnLocation, SpawnRotation, SpawnParams);
             if (NewAgresive)
             {
-				NewAgresive->SetAggresive(true);
-				this->QWaitingPlayers.Enqueue(NewAgresive);
-                this->CurrentWaitingPlayers++;
-				this->CurrentAgresivePlayers++;
-                UE_LOG(LogTemp, Log, TEXT("Spawner [%s]: Successfully spawned %s at %s"),
-                    *GetName(), *NewAgresive->GetName(), *SpawnLocation.ToString());
-                bSpawningAgresives = false;
-                IMaxAgresives--;
+                NewAgresive->SetAggresive(true);
+                NewAgresive->SetSpeed(Speed);
+                SFreePlayers.Add(NewAgresive);
+                ++CurrentAgresivePlayers;
             }
-            else {
-                continue;
+            else
+            {
+                UE_LOG(LogTemp, Warning, TEXT("Spawner [%s]: Failed to spawn AAgresive (index %d)"), *GetName(), i);
             }
         }
-        else
+    }
+
+    // Spawn passive players
+    if (!PasiveClass)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Spawner [%s]: PasiveClass is not set, skipping passive player spawn."), *GetName());
+    }
+    else
+    {
+        SFreePlayers.Reserve(SFreePlayers.Num() + InitialPasivePlayers);
+        for (int32 i = 0; i < InitialPasivePlayers; ++i)
         {
-            if (IMaxPasives == 0)
-            {
-                bSpawningAgresives = true;
-                continue;
-            }
-
+            FVector SpawnLocation = RandomPlayerLocation(2.0f);
             APasive* NewPasive = World->SpawnActor<APasive>(PasiveClass, SpawnLocation, SpawnRotation, SpawnParams);
-
             if (NewPasive)
             {
-				NewPasive->SetAggresive(false);
-				this->QWaitingPlayers.Enqueue(NewPasive);
-				this->CurrentWaitingPlayers++;
-				this->CurrentPasivePlayers++;
-                UE_LOG(LogTemp, Log, TEXT("Spawner [%s]: Successfully spawned %s at %s"),
-                    *GetName(), *NewPasive->GetName(), *SpawnLocation.ToString());
-                bSpawningAgresives = true;
-                IMaxPasives--;
+                NewPasive->SetAggresive(false);
+                NewPasive->SetSpeed(Speed);
+                SFreePlayers.Add(NewPasive);
+                ++CurrentPasivePlayers;
             }
-            else {
-                continue;
+            else
+            {
+                UE_LOG(LogTemp, Warning, TEXT("Spawner [%s]: Failed to spawn APasive (index %d)"), *GetName(), i);
             }
         }
-        ISpawnedAgents++;
     }
-	this->AssignFreePlayers();
 
+    // Finalize initial population
+    this->AssignFreePlayers();
 }
 
 void ASpawner::ProcessPlayers(AStrategyPlayer* Player1, AStrategyPlayer* Player2)
@@ -345,100 +393,150 @@ void ASpawner::ProcessPlayers(AStrategyPlayer* Player1, AStrategyPlayer* Player2
 
 void ASpawner::SpawnPlayer(AStrategyPlayer* Player)
 {
-    if (!IsValid(Player))
-    {
-        return;
-    }
+	if (!IsValid(Player))
+	{
+		return;
+	}
 
-    // Get player base location and bounds
-    FVector PlayerLocation = Player->GetActorLocation();
-    FVector Origin = FVector::ZeroVector;
-    FVector Extent = FVector::ZeroVector;
-    Player->GetActorBounds(true, Origin, Extent); // true = only colliding components
+	// Base spawn info
+	FVector PlayerLocation = Player->GetActorLocation();
 
-    // Determine radius to spawn near the player (use extents as a base)
-    const float Buffer = 100.0f;
-    float Radius = FMath::Max(Extent.X, Extent.Y) + Buffer;
-    if (Radius <= 0.0f)
-    {
-        Radius = 20.0f; // safe fallback
-    }
+	FVector SpawnLocation = PlayerLocation;
+	SpawnLocation.Z -= 100.0f;
+	SpawnLocation.X += 10.0f;
+	FRotator SpawnRotation = FRotator::ZeroRotator;
 
-    // Random offset within radius on X/Y, keep Z slightly above player
-    FVector SpawnLocation = PlayerLocation + FVector(
-        FMath::FRandRange(-Radius, Radius),
-        FMath::FRandRange(-Radius, Radius),
-        110.0f
-    );
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = this;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
-    FRotator SpawnRotation = FRotator::ZeroRotator;
+	UWorld* World = GetWorld();
+	if (!World) return;
 
-    FActorSpawnParameters SpawnParams;
-    SpawnParams.Owner = this;
-    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+	// Helper to handle reuse or spawn for either aggressive or passive players
+	auto SpawnOrReuse = [&](bool bAggressive)
+	{
+		if (bAggressive)
+		{
+			++CurrentAgresivePlayers;
+			// Try reuse dead aggressive
+			if (SDeadAgresives.Num() > 0)
+			{
+				AAgresive* ReusedAgresive = SDeadAgresives.Pop();
+				if (IsValid(ReusedAgresive))
+				{
+					ReusedAgresive->SetActorHiddenInGame(false);
+					ReusedAgresive->SetActorLocation(SpawnLocation);
+					ReusedAgresive->UpdateMeshLocation();
+					this->PushWaitingPlayer(ReusedAgresive);
+				}
+				return;
+			}
 
-    UWorld* World = GetWorld();
-    if (!World) return;
+			// Spawn new aggressive if possible
+			if (!AgresiveClass)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Spawner [%s]: AgresiveClass is not set, cannot spawn aggressive player."), *GetName());
+				return;
+			}
 
-    if (Player->IsAggresive())
-    {
-        this->CurrentAgresivePlayers++;
-        if (SDeadAgresives.Num() > 0)
-        {
-			AAgresive* ReusedAgresive = SDeadAgresives.Pop();
-			ReusedAgresive->SetActorHiddenInGame(false);
-			this->PushWaitingPlayer(ReusedAgresive);
-        }
-        else
-        {
-            AAgresive* NewAgresive = World->SpawnActor<AAgresive>(AgresiveClass, SpawnLocation, SpawnRotation, SpawnParams);
-            if (NewAgresive)
-            {
-                NewAgresive->SetAggresive(true);
-				this->PushWaitingPlayer(NewAgresive);
-                UE_LOG(LogTemp, Log, TEXT("Spawner [%s]: Successfully spawned %s at %s"),
-                    *GetName(), *NewAgresive->GetName(), *SpawnLocation.ToString());
-            }
-        }
-		
-    }
-    else
-    {
-        this->CurrentPasivePlayers++;
-        // Non-aggressive spawn logic: reuse dead pasives if available, otherwise spawn new Pasive.
-        if (SDeadPasives.Num() > 0)
-        {
-			APasive* ReusedPasive = SDeadPasives.Pop();
-			ReusedPasive->SetActorHiddenInGame(false);
-			this->PushWaitingPlayer(ReusedPasive);
-        }
-        else 
-        {
-            APasive* NewPasive = World->SpawnActor<APasive>(PasiveClass, SpawnLocation, SpawnRotation, SpawnParams);
-            if (NewPasive)
-            {
-                NewPasive->SetAggresive(false);
-				this->PushWaitingPlayer(NewPasive);
-                UE_LOG(LogTemp, Log, TEXT("Spawner [%s]: Successfully spawned %s at %s"),
-                    *GetName(), *NewPasive->GetName(), *SpawnLocation.ToString());
-            }
-        }
-		
-    }
+			AStrategyPlayer* NewPlayer = World->SpawnActor<AStrategyPlayer>(AgresiveClass, SpawnLocation, SpawnRotation, SpawnParams);
+			if (NewPlayer)
+			{
+				NewPlayer->SetAggresive(true);
+                NewPlayer->SetSpeed(Speed);
+				this->PushWaitingPlayer(NewPlayer);
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Spawner [%s]: Failed to spawn aggressive player."), *GetName());
+			}
+		}
+		else
+		{
+			++CurrentPasivePlayers;
+			// Try reuse dead passive
+			if (SDeadPasives.Num() > 0)
+			{
+				APasive* ReusedPasive = SDeadPasives.Pop();
+				if (IsValid(ReusedPasive))
+				{
+					ReusedPasive->SetActorHiddenInGame(false);
+					ReusedPasive->SetActorLocation(SpawnLocation);
+                    ReusedPasive->UpdateMeshLocation();
+					this->PushWaitingPlayer(ReusedPasive);
+				}
+				return;
+			}
+
+			// Spawn new passive if possible
+			if (!PasiveClass)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Spawner [%s]: PasiveClass is not set, cannot spawn passive player."), *GetName());
+				return;
+			}
+
+			AStrategyPlayer* NewPlayer = World->SpawnActor<AStrategyPlayer>(PasiveClass, SpawnLocation, SpawnRotation, SpawnParams);
+			if (NewPlayer)
+			{
+				NewPlayer->SetAggresive(false);
+                NewPlayer->SetSpeed(Speed);
+				this->PushWaitingPlayer(NewPlayer);
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Spawner [%s]: Failed to spawn passive player."), *GetName());
+			}
+		}
+	};
+
+	// Execute helper based on the desired aggression
+	SpawnOrReuse(Player->IsAggresive());
 }
 
 void ASpawner::KillPlayer(AStrategyPlayer* Player)
 {
-	UE_LOG(LogTemp, Error, TEXT("Spawner [%s]: Killing player %s"), *GetName(), *Player->GetName());
-	
-    if (Player->IsAggresive())
-    {
-		this->CurrentAgresivePlayers--;
-		this->SDeadAgresives.Add(Cast<AAgresive>(Player));
-    }
-    else
-    {
-		this->CurrentPasivePlayers--;
-		this->SDeadPasives.Add(Cast<APasive>(Player));
-    }
+	if (!IsValid(Player))
+	{
+		return;
+	}
+
+	if (Player->IsAggresive())
+	{
+		// Safely decrement, never below zero
+		CurrentAgresivePlayers = FMath::Max(0, CurrentAgresivePlayers - 1);
+
+		// Ensure we only add valid AAgresive instances and avoid duplicates
+		AAgresive* AsAgg = Cast<AAgresive>(Player);
+		if (AsAgg)
+		{
+			if (!SDeadAgresives.Contains(AsAgg))
+			{
+				SDeadAgresives.Add(AsAgg);
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("KillPlayer: expected AAgresive but cast failed for %s"), *Player->GetName());
+		}
+	}
+	else
+	{
+		// Safely decrement, never below zero
+		CurrentPasivePlayers = FMath::Max(0, CurrentPasivePlayers - 1);
+
+		// Ensure we only add valid APasive instances and avoid duplicates
+		APasive* AsPas = Cast<APasive>(Player);
+		if (AsPas)
+		{
+			if (!SDeadPasives.Contains(AsPas))
+			{
+				SDeadPasives.Add(AsPas);
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("KillPlayer: expected APasive but cast failed for %s"), *Player->GetName());
+		}
+	}
 }

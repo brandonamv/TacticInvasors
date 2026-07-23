@@ -14,15 +14,6 @@ class TACTICINVASORS_API AStrategyPlayer : public AActor
 {
 	GENERATED_BODY()
 	
-public:	
-	// Sets default values for this actor's properties
-	AStrategyPlayer();
-	bool InitializeAgent();
-	void SetAggresive(bool bAggresive) { bIsAgresive = bAggresive; }
-	bool IsAggresive() const { return bIsAgresive; }
-	void SetFitness(float InFitness) { Fitnees = InFitness; }
-	float GetFitness() const { return Fitnees; }
-
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -35,10 +26,24 @@ protected:
 	UPROPERTY()
 	float Fitnees;
 
+	UPROPERTY()
+	float ASpeed=0.0f;
+
 	bool bHasTarget = false;
 
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
+	// Sets default values for this actor's properties
+	AStrategyPlayer();
+	bool InitializeAgent();
+	void SetAggresive(bool bAggresive) { bIsAgresive = bAggresive; }
+	bool IsAggresive() const { return bIsAgresive; }
+	void SetFitness(float InFitness) { Fitnees = InFitness; }
+	float GetFitness() const { return Fitnees; }
+	void SetSpeed(float InSpeed) { ASpeed = InSpeed; }
+	float GetSpeed() const { return ASpeed; }
+	void UpdateMeshLocation();
 
 };

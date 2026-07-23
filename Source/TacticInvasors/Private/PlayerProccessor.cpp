@@ -138,50 +138,46 @@ void APlayerProccessor::ReadFile()
     SInteractionsArray.Empty();
     InitialAgresivePlayers = 0;
     InitialPasivePlayers = 0;
-    AInitialFitness = 0.0f;
-    PInitialFitness = 0.0f;
 
     for (const FString& LineRaw : Lines)
     {
         const FString Line = LineRaw.TrimStartAndEnd();
         if (Line.IsEmpty()) continue;
 
-        UE_LOG(LogTemp, Log, TEXT("ReadFile: Line read: %s"), *Line);
-
         if (Line.StartsWith(TEXT("v=")))
         {
             const FString ValueStr = Line.Mid(2).TrimStartAndEnd();
-            V = FCString::Atof(*ValueStr);
+            V = FMath::Max(0.0f, FCString::Atof(*ValueStr));
             continue;
         }
         if (Line.StartsWith(TEXT("c=")))
         {
             const FString ValueStr = Line.Mid(2).TrimStartAndEnd();
-            C = FCString::Atof(*ValueStr);
+            C = FMath::Max(0.0f, FCString::Atof(*ValueStr));
             continue;
         }
         if (Line.StartsWith(TEXT("m=")))
         {
             const FString ValueStr = Line.Mid(2).TrimStartAndEnd();
-            M = FCString::Atof(*ValueStr);
+            M = FMath::Max(0.0f, FCString::Atof(*ValueStr));
             continue;
         }
         if (Line.StartsWith(TEXT("i=")))
         {
             const FString ValueStr = Line.Mid(2).TrimStartAndEnd();
-            I = FCString::Atof(*ValueStr);
+            I = FMath::Max(0.0f, FCString::Atof(*ValueStr));
             continue;
         }
         if (Line.StartsWith(TEXT("s=")))
         {
             const FString ValueStr = Line.Mid(2).TrimStartAndEnd();
-            Speed = FCString::Atof(*ValueStr);
+            Speed = FMath::Max(0.1f, FCString::Atof(*ValueStr));
             continue;
         }
         if (Line.StartsWith(TEXT("p=")))
         {
             const FString ValueStr = Line.Mid(2).TrimStartAndEnd();
-            MaxIteractions = FCString::Atoi(*ValueStr);
+            MaxIteractions = FMath::Max(0, FCString::Atoi(*ValueStr));
             continue;
         }
         if (Line.StartsWith(TEXT("r=")))
@@ -193,7 +189,7 @@ void APlayerProccessor::ReadFile()
         if (Line.StartsWith(TEXT("u=")))
         {
             const FString ValueStr = Line.Mid(2).TrimStartAndEnd();
-            MaxFitness = FCString::Atof(*ValueStr);
+            MaxFitness = FMath::Max(0.0f, FCString::Atof(*ValueStr));
             continue;
         }
 
@@ -234,12 +230,10 @@ void APlayerProccessor::ReadFile()
                 const FString Expr = Parts[i].TrimStartAndEnd();
                 const float Eval = ShuntingYard(Expr);
                 InteractionArray.Values.Add(Eval);
-                UE_LOG(LogTemp, Log, TEXT("ReadFile: Interaction expr[%d]='%s' => %f"), i, *Expr, Eval);
             }
             else
             {
                 InteractionArray.Values.Add(0.0f);
-                UE_LOG(LogTemp, Warning, TEXT("ReadFile: Missing interaction part %d for line: %s"), i, *Line);
             }
         }
 
@@ -248,7 +242,7 @@ void APlayerProccessor::ReadFile()
         if (Parts.IsValidIndex(2))
         {
             const FString CountStr = Parts[2].TrimStartAndEnd();
-            const int32 CountVal = FCString::Atoi(*CountStr);
+            const int32 CountVal = FMath::Max(0, FCString::Atoi(*CountStr));
             if (bAgresive)
             {
                 InitialAgresivePlayers = CountVal;
@@ -262,9 +256,7 @@ void APlayerProccessor::ReadFile()
         {
             UE_LOG(LogTemp, Warning, TEXT("ReadFile: Missing initial players value (index 4) in line: %s"), *Line);
         }
-    } // end for lines
-
-    UE_LOG(LogTemp, Log, TEXT("ReadFile: Parsed interactions rows = %d ; InitialAgg=%d InitialPas=%d"), SInteractionsArray.Num(), InitialAgresivePlayers, InitialPasivePlayers);
+    } 
 
 }
 

@@ -3,7 +3,6 @@
 #pragma once
 
 
-#include "Containers/Queue.h"
 
 #include "CoreMinimal.h"
 #include "GameFramework/Info.h"
@@ -85,10 +84,14 @@ private:
 
     UPROPERTY()
     TArray<AResource*> SFreeResources;
-	TArray<AResource*> SActiveResources;
+
+    UPROPERTY()
+    TArray<AResource*> SActiveResources;
 
     UPROPERTY()
     TArray<AStrategyPlayer*> SFreePlayers;
+
+    UPROPERTY()
     TArray<AStrategyPlayer*> SActivePlayers;
 	
     UPROPERTY()
@@ -98,10 +101,10 @@ private:
     int32 CurrentPasivePlayers = 0;
 
     UPROPERTY()
-	TArray<APasive*> SDeadPasives;
+	TSet<APasive*> SDeadPasives;
 
     UPROPERTY()
-    TArray<AAgresive*> SDeadAgresives;
+    TSet<AAgresive*> SDeadAgresives;
 
     UPROPERTY()
     APlayerProccessor* APlayerProcessor = nullptr;

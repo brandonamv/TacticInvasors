@@ -44,8 +44,6 @@ protected:
 	
 
 public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
 
 	// Returns true if at least one player slot is free
 	bool Aviable();

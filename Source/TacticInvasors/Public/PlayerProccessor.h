@@ -49,19 +49,24 @@ private:
     int32 InitialAgresivePlayers;
 
     UPROPERTY()
-    float V = 0.0f;
+    //Value of resource
+    float V = 0.0f; 
 
     UPROPERTY()
-    float C = 0.0f;
+    //Cost for resource
+    float C = 0.0f; 
 
     UPROPERTY()
-    float M = 0.0f;
+    //Fitness need to growt
+    float M = 0.0f; 
 
     UPROPERTY()
-	float I = 0.0f;
+    //Initial fitness
+	float I = 0.0f; 
 
     UPROPERTY()
-    float Speed = 0.0f;
+    //Game speed
+    float Speed = 0.0f; 
 
     UPROPERTY()
     int32 MaxIteractions = 0;
@@ -71,12 +76,6 @@ private:
 
     UPROPERTY()
     float MaxFitness = 0.0f;
-
-    UPROPERTY()
-    float AInitialFitness = 0.0f;
-
-    UPROPERTY()
-    float PInitialFitness = 0.0f;
 
     UPROPERTY()
     float AFinalFitness = 0.0f;

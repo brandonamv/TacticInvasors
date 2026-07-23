@@ -25,9 +25,6 @@ void ASpawner::PushFreeResource(AResource* Resource)
     UStaticMeshComponent* Mesh = Resource->FindComponentByClass<UStaticMeshComponent>();
     if (Mesh)
         Mesh->SetSimulatePhysics(true);
-
-    UE_LOG(LogTemp, Log, TEXT("Resource free [%s]: Resources Freed %d"),
-        *Resource->GetName(), SFreeResources.Num());
 }
 AResource* ASpawner::PopFreeResource(AStrategyPlayer* Player)
 {
@@ -151,7 +148,6 @@ void ASpawner::AssignFreePlayers()
     // Ensure we have at least ResourcesNeed resources: spawn missing ones if class available
     if (ResourcesNeed > SFreeResources.Num())
     {
-        UE_LOG(LogTemp, Log, TEXT("Spawner [%s]: Not enough free resources. Need: %d, Available: %d"), *GetName(), ResourcesNeed, SFreeResources.Num());
         if (!ResourceClass)
         {
             UE_LOG(LogTemp, Warning, TEXT("Spawner [%s]: ResourceClass is not set, cannot spawn resources."), *GetName());
@@ -399,7 +395,7 @@ void ASpawner::SpawnPlayer(AStrategyPlayer* Player)
 	}
 
 	// Base spawn info
-	FVector PlayerLocation = Player->GetActorLocation();
+	FVector PlayerLocation = Player->GetMesh()->GetComponentLocation();
 
 	FVector SpawnLocation = PlayerLocation;
 	SpawnLocation.Z -= 100.0f;
@@ -422,13 +418,15 @@ void ASpawner::SpawnPlayer(AStrategyPlayer* Player)
 			// Try reuse dead aggressive
 			if (SDeadAgresives.Num() > 0)
 			{
-				AAgresive* ReusedAgresive = SDeadAgresives.Pop();
-				if (IsValid(ReusedAgresive))
+                AAgresive** FoundAgresivePtr = SDeadAgresives.FindArbitraryElement();
+                AAgresive* ReusedAgresive = FoundAgresivePtr ? *FoundAgresivePtr : nullptr;
+                if (IsValid(ReusedAgresive))
 				{
 					ReusedAgresive->SetActorHiddenInGame(false);
 					ReusedAgresive->SetActorLocation(SpawnLocation);
-					ReusedAgresive->UpdateMeshLocation();
+                    ReusedAgresive->GetMesh()->SetWorldLocation(SpawnLocation);
 					this->PushWaitingPlayer(ReusedAgresive);
+                    SDeadAgresives.Remove(ReusedAgresive);
 				}
 				return;
 			}
@@ -458,13 +456,15 @@ void ASpawner::SpawnPlayer(AStrategyPlayer* Player)
 			// Try reuse dead passive
 			if (SDeadPasives.Num() > 0)
 			{
-				APasive* ReusedPasive = SDeadPasives.Pop();
+                APasive** FoundPasivePtr = SDeadPasives.FindArbitraryElement();
+                APasive* ReusedPasive = FoundPasivePtr ? *FoundPasivePtr : nullptr;
 				if (IsValid(ReusedPasive))
 				{
 					ReusedPasive->SetActorHiddenInGame(false);
 					ReusedPasive->SetActorLocation(SpawnLocation);
-                    ReusedPasive->UpdateMeshLocation();
+                    ReusedPasive->GetMesh()->SetWorldLocation(SpawnLocation);
 					this->PushWaitingPlayer(ReusedPasive);
+                    SDeadPasives.Remove(ReusedPasive);
 				}
 				return;
 			}
@@ -506,14 +506,11 @@ void ASpawner::KillPlayer(AStrategyPlayer* Player)
 		// Safely decrement, never below zero
 		CurrentAgresivePlayers = FMath::Max(0, CurrentAgresivePlayers - 1);
 
-		// Ensure we only add valid AAgresive instances and avoid duplicates
+		// Ensure we only add valid AAgresive instances 
 		AAgresive* AsAgg = Cast<AAgresive>(Player);
 		if (AsAgg)
 		{
-			if (!SDeadAgresives.Contains(AsAgg))
-			{
-				SDeadAgresives.Add(AsAgg);
-			}
+			SDeadAgresives.Add(AsAgg);
 		}
 		else
 		{
@@ -525,14 +522,11 @@ void ASpawner::KillPlayer(AStrategyPlayer* Player)
 		// Safely decrement, never below zero
 		CurrentPasivePlayers = FMath::Max(0, CurrentPasivePlayers - 1);
 
-		// Ensure we only add valid APasive instances and avoid duplicates
+		// Ensure we only add valid APasive instances
 		APasive* AsPas = Cast<APasive>(Player);
 		if (AsPas)
 		{
-			if (!SDeadPasives.Contains(AsPas))
-			{
-				SDeadPasives.Add(AsPas);
-			}
+			SDeadPasives.Add(AsPas);
 		}
 		else
 		{

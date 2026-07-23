@@ -9,17 +9,12 @@
 
 AResource::AResource()
 {
- 	PrimaryActorTick.bCanEverTick = true;
+ 	PrimaryActorTick.bCanEverTick = false;
 }
 
 void AResource::BeginPlay()
 {
 	Super::BeginPlay();
-}
-
-void AResource::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
 }
 
 bool AResource::Aviable()

@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -8,15 +6,33 @@
 
 class ASpawner;
 class AResource;
+class UStaticMeshComponent; // Declaración anticipada (Forward declaration)
 
-UCLASS() 
+UCLASS()
 class TACTICINVASORS_API AStrategyPlayer : public AActor
 {
 	GENERATED_BODY()
-	
+
+public:
+	AStrategyPlayer();
+	virtual void Tick(float DeltaTime) override;
+
+	bool InitializeAgent();
+	void SetAggresive(bool bAggresive) { bIsAgresive = bAggresive; }
+	bool IsAggresive() const { return bIsAgresive; }
+	void SetFitness(float InFitness) { Fitnees = InFitness; }
+	float GetFitness() const { return Fitnees; }
+	void SetSpeed(float InSpeed) { ASpeed = InSpeed; }
+	float GetSpeed() const { return ASpeed; }
+	UStaticMeshComponent* GetMesh() const { return MeshComponent; }
+
 protected:
-	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
+	// Añadimos el componente en caché para evitar FindComponentByClass
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UStaticMeshComponent* MeshComponent;
+
 	UPROPERTY()
 	AResource* TargetResource = nullptr;
 
@@ -27,23 +43,7 @@ protected:
 	float Fitnees;
 
 	UPROPERTY()
-	float ASpeed=0.0f;
+	float ASpeed = 0.0f;
 
 	bool bHasTarget = false;
-
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
-
-	// Sets default values for this actor's properties
-	AStrategyPlayer();
-	bool InitializeAgent();
-	void SetAggresive(bool bAggresive) { bIsAgresive = bAggresive; }
-	bool IsAggresive() const { return bIsAgresive; }
-	void SetFitness(float InFitness) { Fitnees = InFitness; }
-	float GetFitness() const { return Fitnees; }
-	void SetSpeed(float InSpeed) { ASpeed = InSpeed; }
-	float GetSpeed() const { return ASpeed; }
-	void UpdateMeshLocation();
-
 };

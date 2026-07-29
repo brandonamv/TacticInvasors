@@ -37,6 +37,12 @@ public:
     float GetSpeed() const { return Speed; }
     void DailyPenalty(AStrategyPlayer* Player);
 
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Players|Data")
+    FString Player1Name = "";
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Players|Data")
+    FString Player2Name = "";
+
 private:
     void ReadFile();
     float ApplyOp(char Op, float B, float A);
@@ -77,11 +83,6 @@ private:
     UPROPERTY()
     float MaxFitness = 0.0f;
 
-    UPROPERTY()
-    float AFinalFitness = 0.0f;
-
-    UPROPERTY()
-    float PFinalFitness = 0.0f;
 
     UPROPERTY()
     TArray<float> SInteractions;

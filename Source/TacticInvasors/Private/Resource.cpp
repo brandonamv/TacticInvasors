@@ -92,6 +92,8 @@ void AResource::SetTaked(AStrategyPlayer* Player)
 	// If both taked, free the resource
 	if (bTaked1 && bTaked2)
 	{
+		OwnerSpawner->ProcessPlayer(APlayer1);
+		OwnerSpawner->ProcessPlayer(APlayer2);
 		this->FreeResource();
 	}
 }

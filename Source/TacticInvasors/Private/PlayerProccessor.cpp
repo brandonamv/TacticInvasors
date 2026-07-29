@@ -252,6 +252,18 @@ void APlayerProccessor::ReadFile()
                 InitialPasivePlayers = CountVal;
             }
         }
+        if (Parts.IsValidIndex(3))
+        {
+            const FString CountStr = Parts[3].TrimStartAndEnd();
+            if (bAgresive)
+            {
+                Player1Name = Parts[3];
+            }
+            else
+            {
+                Player2Name = Parts[3];
+            }
+        }
         else
         {
             UE_LOG(LogTemp, Warning, TEXT("ReadFile: Missing initial players value (index 4) in line: %s"), *Line);

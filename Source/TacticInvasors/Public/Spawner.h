@@ -30,6 +30,7 @@ public:
 	void PushWaitingPlayer(AStrategyPlayer* Player);
 
 	void ProcessPlayers(AStrategyPlayer* Player1, AStrategyPlayer* Player2);
+    void ProcessPlayer(AStrategyPlayer* Player);
 
     void SpawnPlayer(AStrategyPlayer* Player);
 	void KillPlayer(AStrategyPlayer* Player);
@@ -58,6 +59,18 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawner|Config")
     int32 InitialResourcePlayers;
 
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawner|Data")
+    int32 CurrentAgresivePlayers = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawner|Data")
+    int32 CurrentPasivePlayers = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawner|Data")
+    int32 MaxIterations = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawner|Data")
+    int32 CurrentIteration = 0;
+
     // Tamaño del área tridimensional de spawn
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawner|Config")
     FVector SpawnAreaSize;
@@ -76,10 +89,6 @@ private:
     void ShuffleArray(TArray<T>& TargetArray);
 
     UPROPERTY()
-    int32 MaxIterations = 0;
-    UPROPERTY()
-    int32 CurrentIteration = 0;
-    UPROPERTY()
     float Speed = 0.0f;
 
     UPROPERTY()
@@ -94,11 +103,6 @@ private:
     UPROPERTY()
     TArray<AStrategyPlayer*> SActivePlayers;
 	
-    UPROPERTY()
-    int32 CurrentAgresivePlayers = 0;
-
-    UPROPERTY()
-    int32 CurrentPasivePlayers = 0;
 
     UPROPERTY()
 	TSet<APasive*> SDeadPasives;

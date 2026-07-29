@@ -12,6 +12,37 @@
 #include "TimerManager.h"
 #include "Containers/UnrealString.h" // For FString operations, usually in CoreMinimal.h
 
+
+ASpawner::ASpawner()
+{
+    // Inicializamos variables con valores por defecto seguros
+    InitialAgresivePlayers = 5;
+    InitialPasivePlayers = 5;
+    InitialResourcePlayers = 5;
+    SpawnAreaSize = FVector(500.0f, 500.0f, 100.0f);
+    SpawnerCenterLocation = FVector::ZeroVector;
+
+}
+
+void ASpawner::BeginPlay()
+{
+    Super::BeginPlay();
+    if (!APlayerProcessor)
+    {
+        APlayerProcessor = GetWorld()->SpawnActor<APlayerProccessor>();
+        if (APlayerProcessor)
+        {
+            APlayerProcessor->SetOwner(this);
+            APlayerProcessor->Initialize();
+            InitialAgresivePlayers = APlayerProcessor->GetInitialAgresivePlayers();
+            InitialPasivePlayers = APlayerProcessor->GetInitialPasivePlayers();
+            MaxIterations = APlayerProcessor->GetMaxIteractions();
+            Speed = APlayerProcessor->GetSpeed();
+        }
+    }
+    this->SpawnAgents();
+}
+
 void ASpawner::PushFreeResource(AResource* Resource)
 {
     if (!Resource)
@@ -26,6 +57,7 @@ void ASpawner::PushFreeResource(AResource* Resource)
     if (Mesh)
         Mesh->SetSimulatePhysics(true);
 }
+
 AResource* ASpawner::PopFreeResource(AStrategyPlayer* Player)
 {
     // Pop from active list (use Last element semantics) but keep consistent types
@@ -88,16 +120,6 @@ void ASpawner::PushFreePlayer(AStrategyPlayer* Player)
     }
 
     SActivePlayers.Pop();
-
-    // Safely call processor if available
-    if (IsValid(APlayerProcessor))
-    {
-        APlayerProcessor->ProcessPlayer(Player);
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("PushFreePlayer: APlayerProcessor is null. Player=%s"), *Player->GetName());
-    }
 
     if (!this->SActivePlayers.IsEmpty())
     {
@@ -228,36 +250,6 @@ void ASpawner::AssignFreePlayers()
     }
 }
 
-ASpawner::ASpawner()
-{
-    // Inicializamos variables con valores por defecto seguros
-    InitialAgresivePlayers = 5;
-    InitialPasivePlayers = 5;
-    InitialResourcePlayers = 5;
-    SpawnAreaSize = FVector(500.0f, 500.0f, 100.0f);
-    SpawnerCenterLocation = FVector::ZeroVector;
-
-}
-
-void ASpawner::BeginPlay()
-{
-    Super::BeginPlay();
-    if (!APlayerProcessor)
-    {
-        APlayerProcessor = GetWorld()->SpawnActor<APlayerProccessor>();
-        if (APlayerProcessor)
-        {
-			APlayerProcessor->SetOwner(this);
-            APlayerProcessor->Initialize();
-            InitialAgresivePlayers = APlayerProcessor->GetInitialAgresivePlayers();
-            InitialPasivePlayers = APlayerProcessor->GetInitialPasivePlayers();
-            MaxIterations = APlayerProcessor->GetMaxIteractions();
-            Speed = APlayerProcessor->GetSpeed();
-		}
-    }
-    this->SpawnAgents();
-}
-
 // Replacement: SpawnAgents method refactor for clearer, safer spawning and less duplication.
 void ASpawner::SpawnAgents()
 {
@@ -384,6 +376,13 @@ void ASpawner::ProcessPlayers(AStrategyPlayer* Player1, AStrategyPlayer* Player2
     if (APlayerProcessor)
     {
         APlayerProcessor->ProcessPlayers(Player1, Player2);
+    }
+}
+
+void ASpawner::ProcessPlayer(AStrategyPlayer* Player) {
+    if (APlayerProcessor)
+    {
+        APlayerProcessor->ProcessPlayer(Player);
     }
 }
 

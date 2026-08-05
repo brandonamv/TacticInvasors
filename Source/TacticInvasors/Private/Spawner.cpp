@@ -397,7 +397,7 @@ void ASpawner::SpawnPlayer(AStrategyPlayer* Player)
 	FVector PlayerLocation = Player->GetMesh()->GetComponentLocation();
 
 	FVector SpawnLocation = PlayerLocation;
-	SpawnLocation.Z -= 100.0f;
+	SpawnLocation.Z += 150.0f;
 	SpawnLocation.X += 10.0f;
 	FRotator SpawnRotation = FRotator::ZeroRotator;
 
@@ -422,7 +422,6 @@ void ASpawner::SpawnPlayer(AStrategyPlayer* Player)
                 if (IsValid(ReusedAgresive))
 				{
 					ReusedAgresive->SetActorHiddenInGame(false);
-					ReusedAgresive->SetActorLocation(SpawnLocation);
                     ReusedAgresive->GetMesh()->SetWorldLocation(SpawnLocation);
 					this->PushWaitingPlayer(ReusedAgresive);
                     SDeadAgresives.Remove(ReusedAgresive);
@@ -460,7 +459,6 @@ void ASpawner::SpawnPlayer(AStrategyPlayer* Player)
 				if (IsValid(ReusedPasive))
 				{
 					ReusedPasive->SetActorHiddenInGame(false);
-					ReusedPasive->SetActorLocation(SpawnLocation);
                     ReusedPasive->GetMesh()->SetWorldLocation(SpawnLocation);
 					this->PushWaitingPlayer(ReusedPasive);
                     SDeadPasives.Remove(ReusedPasive);

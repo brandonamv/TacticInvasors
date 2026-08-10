@@ -2,6 +2,9 @@
 #include "Spawner.h"
 #include "Resource.h"
 #include "Components/StaticMeshComponent.h"
+#include "Blueprint/UserWidget.h"
+#include "Components/WidgetComponent.h"
+#include "Kismet/GameplayStatics.h" // Required for UGameplayStatics::GetPlayerCameraManager
 
 AStrategyPlayer::AStrategyPlayer()
 {
@@ -27,10 +30,71 @@ bool AStrategyPlayer::InitializeAgent()
 	return false;
 }
 
+void AStrategyPlayer::PlayInteraction(bool isAgresive)
+{
+	if (!UwSameInteraction || !UwDistinctInteraction)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s]: PlayInteraction: Uno de los widgets de interacción es nulo. Verifique la inicialización en BeginPlay."), *GetName());
+		return;
+	}
+
+	SetActorLocation(MeshComponent->GetComponentLocation());
+
+	if (bIsAgresive == isAgresive)
+	{
+		UwSameInteraction->SetVisibility(ESlateVisibility::Visible);
+	}
+	else {
+		UwDistinctInteraction->SetVisibility(ESlateVisibility::Visible);
+	}
+}
+
+void AStrategyPlayer::StopInteraction()
+{
+	if (!UwDistinctInteraction || !UwSameInteraction)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[%s]: StopInteraction: Uno de los widgets de interacción es nulo. No se puede ocultar."), *GetName());
+		return;
+	}
+	UwDistinctInteraction->SetVisibility(ESlateVisibility::Hidden);
+	UwSameInteraction->SetVisibility(ESlateVisibility::Hidden);
+}
+
 void AStrategyPlayer::BeginPlay()
 {
 	Super::BeginPlay();
 	MeshComponent = FindComponentByClass<UStaticMeshComponent>();
+	
+	UWidgetComponent* DistinctInteractionWidgetComponent = FindComponentByTag<UWidgetComponent>(FName("DistinctInteraction"));
+	if (DistinctInteractionWidgetComponent)
+	{
+		UwDistinctInteraction = Cast<UUserWidget>(DistinctInteractionWidgetComponent->GetUserWidgetObject());
+		if (UwDistinctInteraction)
+		{
+			UwDistinctInteraction->SetVisibility(ESlateVisibility::Hidden);
+		}
+		UE_LOG(LogTemp, Log, TEXT("[%s]: DistinctInteractionWidgetComponent encontrado. UwDistinctInteraction = %s"), *GetName(), UwDistinctInteraction ? *UwDistinctInteraction->GetName() : TEXT("nullptr"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s]: DistinctInteractionWidgetComponent con la etiqueta 'DistinctInteraction' NO ENCONTRADO."), *GetName());
+	}
+
+	// Buscar y asignar UwSameInteraction
+	UWidgetComponent* SameInteractionWidgetComponent = FindComponentByTag<UWidgetComponent>(FName("SameInteraction"));
+	if (SameInteractionWidgetComponent)
+	{
+		UwSameInteraction = Cast<UUserWidget>(SameInteractionWidgetComponent->GetUserWidgetObject());
+		if (UwSameInteraction)
+		{
+			UwSameInteraction->SetVisibility(ESlateVisibility::Hidden);
+		}
+		UE_LOG(LogTemp, Log, TEXT("[%s]: SameInteractionWidgetComponent encontrado. UwSameInteraction = %s"), *GetName(), UwSameInteraction ? *UwSameInteraction->GetName() : TEXT("nullptr"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s]: SameInteractionWidgetComponent con la etiqueta 'SameInteraction' NO ENCONTRADO."), *GetName());
+	}
 }
 
 void AStrategyPlayer::Tick(float DeltaTime)

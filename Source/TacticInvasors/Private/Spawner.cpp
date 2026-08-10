@@ -233,6 +233,7 @@ void ASpawner::AssignFreePlayers()
     while (!SFreePlayers.IsEmpty())
     {
         AStrategyPlayer* Player = SFreePlayers.Pop();
+		Player->StopInteraction();
         if (IsValid(Player) && Player->InitializeAgent())
         {
             SActivePlayers.Push(Player);

@@ -6,7 +6,8 @@
 
 class ASpawner;
 class AResource;
-class UStaticMeshComponent; // Declaración anticipada (Forward declaration)
+class UStaticMeshComponent; 
+class UUserWidget;
 
 UCLASS()
 class TACTICINVASORS_API AStrategyPlayer : public AActor
@@ -25,13 +26,20 @@ public:
 	void SetSpeed(float InSpeed) { ASpeed = InSpeed; }
 	float GetSpeed() const { return ASpeed; }
 	UStaticMeshComponent* GetMesh() const { return MeshComponent; }
-
+	void PlayInteraction(bool isAgresive);
+	void StopInteraction();
 protected:
 	virtual void BeginPlay() override;
 
 	// Añadimos el componente en caché para evitar FindComponentByClass
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UStaticMeshComponent* MeshComponent;
+
+	UPROPERTY()
+	UUserWidget* UwSameInteraction;
+
+	UPROPERTY()
+	UUserWidget* UwDistinctInteraction;
 
 	UPROPERTY()
 	AResource* TargetResource = nullptr;

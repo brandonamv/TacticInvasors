@@ -93,7 +93,9 @@ void AResource::SetTaked(AStrategyPlayer* Player)
 	if (bTaked1 && bTaked2)
 	{
 		OwnerSpawner->ProcessPlayer(APlayer1);
+		APlayer1->PlayInteraction(APlayer2->IsAggresive());
 		OwnerSpawner->ProcessPlayer(APlayer2);
+		APlayer2->PlayInteraction(APlayer1->IsAggresive());
 		this->FreeResource();
 	}
 }

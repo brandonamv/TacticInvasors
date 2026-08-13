@@ -150,7 +150,7 @@ void ASpawner::AssignFreePlayers()
     UWorld* World = GetWorld();
     if (!World) return;
 
-    if (CurrentIteration > MaxIterations) 
+    if (CurrentIteration >= MaxIterations) 
     {
         return;
     }

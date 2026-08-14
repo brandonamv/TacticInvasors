@@ -2,9 +2,7 @@
 #include "Spawner.h"
 #include "Resource.h"
 #include "Components/StaticMeshComponent.h"
-#include "Blueprint/UserWidget.h"
-#include "Components/WidgetComponent.h"
-#include "Kismet/GameplayStatics.h" // Required for UGameplayStatics::GetPlayerCameraManager
+#include "Components/BillboardComponent.h" // Required for UBillboardComponent
 
 AStrategyPlayer::AStrategyPlayer()
 {
@@ -34,18 +32,21 @@ void AStrategyPlayer::PlayInteraction(bool isAgresive)
 {
 	if (!UwSameInteraction || !UwDistinctInteraction)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[%s]: PlayInteraction: Uno de los widgets de interacción es nulo. Verifique la inicialización en BeginPlay."), *GetName());
+		UE_LOG(LogTemp, Error, TEXT("[%s]: PlayInteraction: One of the interaction billboards is null. Verify initialization in BeginPlay."), *GetName());
 		return;
 	}
 
 	SetActorLocation(MeshComponent->GetComponentLocation());
+	// Changing the actor's location here is not directly related to billboard visibility and could cause unintended movement.
 
 	if (bIsAgresive == isAgresive)
 	{
-		UwSameInteraction->SetVisibility(ESlateVisibility::Visible);
+		UwSameInteraction->SetHiddenInGame(false); // Show the 'same' interaction billboard
+		UwDistinctInteraction->SetHiddenInGame(true); // Hide the 'distinct' interaction billboard
 	}
 	else {
-		UwDistinctInteraction->SetVisibility(ESlateVisibility::Visible);
+		UwDistinctInteraction->SetHiddenInGame(false); // Show the 'distinct' interaction billboard
+		UwSameInteraction->SetHiddenInGame(true); // Hide the 'same' interaction billboard
 	}
 }
 
@@ -53,11 +54,11 @@ void AStrategyPlayer::StopInteraction()
 {
 	if (!UwDistinctInteraction || !UwSameInteraction)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[%s]: StopInteraction: Uno de los widgets de interacción es nulo. No se puede ocultar."), *GetName());
+		UE_LOG(LogTemp, Warning, TEXT("[%s]: StopInteraction: One of the interaction billboards is null. Cannot hide."), *GetName());
 		return;
 	}
-	UwDistinctInteraction->SetVisibility(ESlateVisibility::Hidden);
-	UwSameInteraction->SetVisibility(ESlateVisibility::Hidden);
+	UwDistinctInteraction->SetHiddenInGame(true); // Hide the distinct interaction billboard
+	UwSameInteraction->SetHiddenInGame(true); // Hide the same interaction billboard
 }
 
 void AStrategyPlayer::BeginPlay()
@@ -65,35 +66,36 @@ void AStrategyPlayer::BeginPlay()
 	Super::BeginPlay();
 	MeshComponent = FindComponentByClass<UStaticMeshComponent>();
 	
-	UWidgetComponent* DistinctInteractionWidgetComponent = FindComponentByTag<UWidgetComponent>(FName("DistinctInteraction"));
-	if (DistinctInteractionWidgetComponent)
+	// Buscar y asignar UwDistinctInteraction como UBillboardComponent
+	UBillboardComponent* DistinctInteractionBillboardComponent = FindComponentByTag<UBillboardComponent>(FName("DistinctInteraction"));
+	if (DistinctInteractionBillboardComponent)
 	{
-		UwDistinctInteraction = Cast<UUserWidget>(DistinctInteractionWidgetComponent->GetUserWidgetObject());
+		UwDistinctInteraction = DistinctInteractionBillboardComponent;
 		if (UwDistinctInteraction)
 		{
-			UwDistinctInteraction->SetVisibility(ESlateVisibility::Hidden);
+			UwDistinctInteraction->SetHiddenInGame(true); // Hide initially
 		}
-		UE_LOG(LogTemp, Log, TEXT("[%s]: DistinctInteractionWidgetComponent encontrado. UwDistinctInteraction = %s"), *GetName(), UwDistinctInteraction ? *UwDistinctInteraction->GetName() : TEXT("nullptr"));
+		UE_LOG(LogTemp, Log, TEXT("[%s]: DistinctInteractionBillboardComponent found. UwDistinctInteraction = %s"), *GetName(), UwDistinctInteraction ? *UwDistinctInteraction->GetName() : TEXT("nullptr"));
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("[%s]: DistinctInteractionWidgetComponent con la etiqueta 'DistinctInteraction' NO ENCONTRADO."), *GetName());
+		UE_LOG(LogTemp, Error, TEXT("[%s]: DistinctInteractionBillboardComponent with tag 'DistinctInteraction' NOT FOUND."), *GetName());
 	}
 
-	// Buscar y asignar UwSameInteraction
-	UWidgetComponent* SameInteractionWidgetComponent = FindComponentByTag<UWidgetComponent>(FName("SameInteraction"));
-	if (SameInteractionWidgetComponent)
+	// Buscar y asignar UwSameInteraction como UBillboardComponent
+	UBillboardComponent* SameInteractionBillboardComponent = FindComponentByTag<UBillboardComponent>(FName("SameInteraction"));
+	if (SameInteractionBillboardComponent)
 	{
-		UwSameInteraction = Cast<UUserWidget>(SameInteractionWidgetComponent->GetUserWidgetObject());
+		UwSameInteraction = SameInteractionBillboardComponent;
 		if (UwSameInteraction)
 		{
-			UwSameInteraction->SetVisibility(ESlateVisibility::Hidden);
+			UwSameInteraction->SetHiddenInGame(true); // Hide initially
 		}
-		UE_LOG(LogTemp, Log, TEXT("[%s]: SameInteractionWidgetComponent encontrado. UwSameInteraction = %s"), *GetName(), UwSameInteraction ? *UwSameInteraction->GetName() : TEXT("nullptr"));
+		UE_LOG(LogTemp, Log, TEXT("[%s]: SameInteractionBillboardComponent found. UwSameInteraction = %s"), *GetName(), UwSameInteraction ? *UwSameInteraction->GetName() : TEXT("nullptr"));
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("[%s]: SameInteractionWidgetComponent con la etiqueta 'SameInteraction' NO ENCONTRADO."), *GetName());
+		UE_LOG(LogTemp, Error, TEXT("[%s]: SameInteractionBillboardComponent with tag 'SameInteraction' NOT FOUND."), *GetName());
 	}
 }
 
@@ -120,7 +122,7 @@ void AStrategyPlayer::Tick(float DeltaTime)
 	FVector GoalLocation = TargetResource->GetActorLocation();
 
 	const float Distance = FVector::Dist(CurrentPhysicalLocation, GoalLocation);
-	const float StopDistance = 150.0f;
+	const float StopDistance = 250.0f;
 
 	if (Distance <= StopDistance)
 	{

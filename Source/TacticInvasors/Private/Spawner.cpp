@@ -399,7 +399,7 @@ void ASpawner::SpawnPlayer(AStrategyPlayer* Player)
 
 	FVector SpawnLocation = PlayerLocation;
 	SpawnLocation.Z += 150.0f;
-	SpawnLocation.X += 10.0f;
+	SpawnLocation.X += 100.0f;
 	FRotator SpawnRotation = FRotator::ZeroRotator;
 
 	FActorSpawnParameters SpawnParams;

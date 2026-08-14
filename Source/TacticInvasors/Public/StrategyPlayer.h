@@ -7,7 +7,7 @@
 class ASpawner;
 class AResource;
 class UStaticMeshComponent; 
-class UUserWidget;
+class UBillboardComponent;
 
 UCLASS()
 class TACTICINVASORS_API AStrategyPlayer : public AActor
@@ -35,11 +35,11 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UStaticMeshComponent* MeshComponent;
 
-	UPROPERTY()
-	UUserWidget* UwSameInteraction;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
+	UBillboardComponent* UwSameInteraction;
 
-	UPROPERTY()
-	UUserWidget* UwDistinctInteraction;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
+	UBillboardComponent* UwDistinctInteraction;
 
 	UPROPERTY()
 	AResource* TargetResource = nullptr;

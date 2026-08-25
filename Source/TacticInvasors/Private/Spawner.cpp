@@ -165,7 +165,18 @@ void ASpawner::AssignFreePlayers()
     FVector BaseLocation = SpawnerCenterLocation.IsZero() ? GetActorLocation() : SpawnerCenterLocation;
     FRotator SpawnRotation = FRotator::ZeroRotator;
 
-    const int32 ResourcesNeed = SFreePlayers.Num() / 2;
+
+	int32 ResourcesNeed = 0;
+
+    if (APlayerProcessor)
+    {
+        if (APlayerProcessor->GetResourceFillingType() != 0) {
+            ResourcesNeed = CurrentIteration == 0 ? InitialResourcePlayers : APlayerProcessor->GetResourceIncrement(CurrentIteration, SFreePlayers.Num());
+        }
+        else {
+			ResourcesNeed = InitialResourcePlayers;
+        }
+    }
 
     // Ensure we have at least ResourcesNeed resources: spawn missing ones if class available
     if (ResourcesNeed > SFreeResources.Num())
@@ -229,7 +240,6 @@ void ASpawner::AssignFreePlayers()
     ShuffleArray(SFreePlayers);
     TArray<AStrategyPlayer*> PlayersToWait;
     PlayersToWait.Reserve(SFreePlayers.Num());
-
     while (!SFreePlayers.IsEmpty())
     {
         AStrategyPlayer* Player = SFreePlayers.Pop();
@@ -240,9 +250,19 @@ void ASpawner::AssignFreePlayers()
         }
         else
         {
-            PlayersToWait.Push(Player);
+            
+            APlayerProcessor->DailyPenalty(Player);
+            if (Player->GetFitness() > 0) 
+            {
+                PlayersToWait.Push(Player);
+            }
+            else {
+                Player->SetFitness(APlayerProcessor->GetI());
+				this->KillPlayer(Player);
+            }
         }
     }
+
 
     // Return the waiting players to the free list (preserve order not required)
     if (!PlayersToWait.IsEmpty())
@@ -279,8 +299,7 @@ void ASpawner::SpawnAgents()
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
     // Ensure at least one resource is available
-    InitialResourcePlayers = FMath::Max((InitialAgresivePlayers + InitialPasivePlayers) / 2, 1);
-
+	InitialResourcePlayers = APlayerProcessor ? APlayerProcessor->GetInitialResources() : 1;
     // Reserve to reduce reallocations
     SFreeResources.Reserve(SFreeResources.Num() + InitialResourcePlayers);
 
@@ -333,6 +352,7 @@ void ASpawner::SpawnAgents()
                 NewAgresive->SetAggresive(true);
                 NewAgresive->SetSpeed(Speed);
                 SFreePlayers.Add(NewAgresive);
+				NewAgresive->SetFitness(APlayerProcessor->GetI());
                 ++CurrentAgresivePlayers;
             }
             else
@@ -359,6 +379,7 @@ void ASpawner::SpawnAgents()
                 NewPasive->SetAggresive(false);
                 NewPasive->SetSpeed(Speed);
                 SFreePlayers.Add(NewPasive);
+				NewPasive->SetFitness(APlayerProcessor->GetI());
                 ++CurrentPasivePlayers;
             }
             else
@@ -424,6 +445,7 @@ void ASpawner::SpawnPlayer(AStrategyPlayer* Player)
 				{
 					ReusedAgresive->SetActorHiddenInGame(false);
                     ReusedAgresive->GetMesh()->SetWorldLocation(SpawnLocation);
+					ReusedAgresive->SetFitness(APlayerProcessor->GetI());
 					this->PushWaitingPlayer(ReusedAgresive);
                     SDeadAgresives.Remove(ReusedAgresive);
 				}
@@ -442,6 +464,7 @@ void ASpawner::SpawnPlayer(AStrategyPlayer* Player)
 			{
 				NewPlayer->SetAggresive(true);
                 NewPlayer->SetSpeed(Speed);
+				NewPlayer->SetFitness(APlayerProcessor->GetI());
 				this->PushWaitingPlayer(NewPlayer);
 			}
 			else
@@ -461,6 +484,7 @@ void ASpawner::SpawnPlayer(AStrategyPlayer* Player)
 				{
 					ReusedPasive->SetActorHiddenInGame(false);
                     ReusedPasive->GetMesh()->SetWorldLocation(SpawnLocation);
+					ReusedPasive->SetFitness(APlayerProcessor->GetI());
 					this->PushWaitingPlayer(ReusedPasive);
                     SDeadPasives.Remove(ReusedPasive);
 				}
@@ -479,6 +503,7 @@ void ASpawner::SpawnPlayer(AStrategyPlayer* Player)
 			{
 				NewPlayer->SetAggresive(false);
                 NewPlayer->SetSpeed(Speed);
+				NewPlayer->SetFitness(APlayerProcessor->GetI());
 				this->PushWaitingPlayer(NewPlayer);
 			}
 			else

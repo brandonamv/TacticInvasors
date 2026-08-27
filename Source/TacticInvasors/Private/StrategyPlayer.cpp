@@ -9,23 +9,14 @@ AStrategyPlayer::AStrategyPlayer()
 	PrimaryActorTick.bCanEverTick = true;
 }
 
-bool AStrategyPlayer::InitializeAgent()
+void AStrategyPlayer::InitializeAgent(AResource* Target)
 {
-	ASpawner* InSpawner = Cast<ASpawner>(GetOwner());
-	if (!IsValid(InSpawner))
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[%s]: InitializeAgent: Owner is not a valid ASpawner."), *GetName());
-		return false;
-	}
 
-	TargetResource = InSpawner->PopFreeResource(this);
+	TargetResource = Target;
 	if (TargetResource)
 	{
 		bHasTarget = true;
-		return true;
 	}
-
-	return false;
 }
 
 void AStrategyPlayer::PlayInteraction(bool isAgresive)
@@ -41,24 +32,34 @@ void AStrategyPlayer::PlayInteraction(bool isAgresive)
 
 	if (bIsAgresive == isAgresive)
 	{
-		UwSameInteraction->SetHiddenInGame(false); // Show the 'same' interaction billboard
-		UwDistinctInteraction->SetHiddenInGame(true); // Hide the 'distinct' interaction billboard
+		this->UwSameInteraction->SetHiddenInGame(false); // Show the 'same' interaction billboard
 	}
 	else {
-		UwDistinctInteraction->SetHiddenInGame(false); // Show the 'distinct' interaction billboard
-		UwSameInteraction->SetHiddenInGame(true); // Hide the 'same' interaction billboard
+		this->UwDistinctInteraction->SetHiddenInGame(false); // Show the 'distinct' interaction billboard
 	}
 }
 
 void AStrategyPlayer::StopInteraction()
 {
-	if (!UwDistinctInteraction || !UwSameInteraction)
+	if (!UwDistinctInteraction || !UwSameInteraction || !UwDeathInteraction)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[%s]: StopInteraction: One of the interaction billboards is null. Cannot hide."), *GetName());
 		return;
 	}
-	UwDistinctInteraction->SetHiddenInGame(true); // Hide the distinct interaction billboard
-	UwSameInteraction->SetHiddenInGame(true); // Hide the same interaction billboard
+	this->UwDistinctInteraction->SetHiddenInGame(true); // Hide the distinct interaction billboard
+	this->UwSameInteraction->SetHiddenInGame(true); // Hide the same interaction billboard
+	this->UwDeathInteraction->SetHiddenInGame(true); // Hide the death interaction billboard
+}
+
+void AStrategyPlayer::KillPlayer()
+{
+	if (!UwDeathInteraction)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[%s]: KillPlayer: Death interaction billboard is null. Cannot show."), *GetName());
+		return;
+	}
+	SetActorLocation(MeshComponent->GetComponentLocation());
+	this->UwDeathInteraction->SetHiddenInGame(false); // Show the death interaction billboard
 }
 
 void AStrategyPlayer::BeginPlay()
@@ -97,18 +98,29 @@ void AStrategyPlayer::BeginPlay()
 	{
 		UE_LOG(LogTemp, Error, TEXT("[%s]: SameInteractionBillboardComponent with tag 'SameInteraction' NOT FOUND."), *GetName());
 	}
+
+	UBillboardComponent* DeathInteractionBillboardComponent = FindComponentByTag<UBillboardComponent>(FName("DeathInteraction"));
+	if (DeathInteractionBillboardComponent)
+	{
+		UwDeathInteraction = DeathInteractionBillboardComponent;
+		if (UwDeathInteraction)
+		{
+			UwDeathInteraction->SetHiddenInGame(true); // Hide initially
+		}
+		UE_LOG(LogTemp, Log, TEXT("[%s]: DeathInteractionBillboardComponent found. UwDeathInteraction = %s"), *GetName(), UwDeathInteraction ? *UwDeathInteraction->GetName() : TEXT("nullptr"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[%s]: DeathInteractionBillboardComponent with tag 'DeathInteraction' NOT FOUND."), *GetName());
+	}
 }
 
 void AStrategyPlayer::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (!TargetResource || !MeshComponent)
-	{
-		return;
-	}
 
-	if (!bHasTarget)
+	if (!TargetResource || !MeshComponent || !bHasTarget) 
 	{
 		if (MeshComponent->IsSimulatingPhysics())
 		{

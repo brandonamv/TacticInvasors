@@ -24,7 +24,7 @@ class TACTICINVASORS_API ASpawner : public AInfo
 public:
     ASpawner();
     void PushFreeResource(AResource* Resource);
-    AResource* PopFreeResource(AStrategyPlayer* Player);
+    AResource* PopFreeResource();
 
 	void PushFreePlayer(AStrategyPlayer* Player);
 	void PushWaitingPlayer(AStrategyPlayer* Player);
@@ -81,12 +81,14 @@ public:
 
 private:
     FTimerHandle SpawnPlayersTimerHandle;
+    FTimerHandle DeathPlayersTimerHandle;
+	FTimerHandle KillPlayersTimerHandle;
 
     void SpawnAgents();
     void AssignFreePlayers();
 
-    template<typename T>
-    void ShuffleArray(TArray<T>& TargetArray);
+	// Declaration only: implementation moved to .cpp to avoid header-level parsing issues
+	void ShuffleArray(TArray<AStrategyPlayer*>& TargetArray);
 
     UPROPERTY()
     float Speed = 0.0f;
@@ -113,18 +115,3 @@ private:
     UPROPERTY()
     APlayerProccessor* APlayerProcessor = nullptr;
 };
-
-template<typename T>
-inline void ASpawner::ShuffleArray(TArray<T>& TargetArray)
-{
-    const int32 LastIndex = TargetArray.Num() - 1;
-    for (int32 i = 0; i <= LastIndex; ++i)
-    {
-        int32 Index = FMath::RandRange(i, LastIndex);
-        if (i != Index)
-        {
-            TargetArray.Swap(i, Index);
-        }
-    }
-
-}

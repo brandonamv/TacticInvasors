@@ -4,7 +4,6 @@
 #include "GameFramework/Actor.h"
 #include "StrategyPlayer.generated.h"
 
-class ASpawner;
 class AResource;
 class UStaticMeshComponent; 
 class UBillboardComponent;
@@ -18,7 +17,7 @@ public:
 	AStrategyPlayer();
 	virtual void Tick(float DeltaTime) override;
 
-	bool InitializeAgent();
+	void InitializeAgent(AResource* Target);
 	void SetAggresive(bool bAggresive) { bIsAgresive = bAggresive; }
 	bool IsAggresive() const { return bIsAgresive; }
 	void SetFitness(float InFitness) { Fitnees = InFitness; }
@@ -28,6 +27,7 @@ public:
 	UStaticMeshComponent* GetMesh() const { return MeshComponent; }
 	void PlayInteraction(bool isAgresive);
 	void StopInteraction();
+	void KillPlayer();
 protected:
 	virtual void BeginPlay() override;
 
@@ -40,6 +40,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
 	UBillboardComponent* UwDistinctInteraction;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
+	UBillboardComponent* UwDeathInteraction;
 
 	UPROPERTY()
 	AResource* TargetResource = nullptr;

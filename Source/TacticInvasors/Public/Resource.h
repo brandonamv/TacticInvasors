@@ -7,6 +7,7 @@
 #include "Resource.generated.h"
 
 class AStrategyPlayer;
+class UStaticMeshComponent;
 
 UCLASS()
 class TACTICINVASORS_API AResource : public AActor
@@ -41,6 +42,9 @@ protected:
 
 	UPROPERTY()
 	bool bTaked2 = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UStaticMeshComponent* MeshComponent;
 	
 
 public:	
@@ -49,11 +53,13 @@ public:
 	bool Aviable();
 
 	// Assign a player to an available slot (fills APlayer1 then APlayer2)
-	void SetAsigned(AStrategyPlayer* Player);
+	void SetAsigned(AStrategyPlayer* Player1, AStrategyPlayer* Player2);
 
 	// Called by the player when it has taken the resource
 	void SetTaked(AStrategyPlayer* Player);
 
 	// Release/reset the resource
 	void FreeResource();
+
+	UStaticMeshComponent* GetMesh() const { return MeshComponent; }
 };

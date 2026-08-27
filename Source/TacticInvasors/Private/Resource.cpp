@@ -6,6 +6,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "Containers/UnrealString.h"
+#include "Components/StaticMeshComponent.h"
 
 AResource::AResource()
 {
@@ -15,6 +16,8 @@ AResource::AResource()
 void AResource::BeginPlay()
 {
 	Super::BeginPlay();
+
+	MeshComponent = FindComponentByClass<UStaticMeshComponent>();
 }
 
 bool AResource::Aviable()
@@ -23,35 +26,27 @@ bool AResource::Aviable()
 	return (!bPlayer1) || (!bPlayer2);
 }
 
-void AResource::SetAsigned(AStrategyPlayer* Player)
+void AResource::SetAsigned(AStrategyPlayer* Player1, AStrategyPlayer* Player2)
 {
-	if (!IsValid(Player))
+	if (!IsValid(Player1) || !IsValid(Player2))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[%s]: SetAsigned called with null Player."), *GetName());
 		return;
 	}
 
-	// Prefer to assign to slot 1
-	if (!bPlayer1)
-	{
-		bPlayer1 = true;
-		bTaked1 = false;
-		APlayer1 = Player;
-		UE_LOG(LogTemp, Log, TEXT("[%s]: Assigned Player1 = %s"), *GetName(), *Player->GetName());
-		return;
-	}
+	bPlayer1 = true;
+	bTaked1 = false;
+	APlayer1 = Player1;
+	Player1->InitializeAgent(this);
+	UE_LOG(LogTemp, Log, TEXT("[%s]: Assigned Player1 = %s"), *GetName(), *Player1->GetName());
 
-	// then slot 2
-	if (!bPlayer2)
-	{
-		bPlayer2 = true;
-		bTaked2 = false;
-		APlayer2 = Player;
-		UE_LOG(LogTemp, Log, TEXT("[%s]: Assigned Player2 = %s"), *GetName(), *Player->GetName());
-		return;
-	}
+	bPlayer2 = true;
+	bTaked2 = false;
+	APlayer2 = Player2;
+	Player2->InitializeAgent(this);
+	UE_LOG(LogTemp, Log, TEXT("[%s]: Assigned Player2 = %s"), *GetName(), *Player2->GetName());
+	return;
 
-	UE_LOG(LogTemp, Warning, TEXT("[%s]: SetAsigned called but no free slots."), *GetName());
 }
 
 void AResource::SetTaked(AStrategyPlayer* Player)
@@ -92,10 +87,12 @@ void AResource::SetTaked(AStrategyPlayer* Player)
 	// If both taked, free the resource
 	if (bTaked1 && bTaked2)
 	{
-		OwnerSpawner->ProcessPlayer(APlayer1);
 		APlayer1->PlayInteraction(APlayer2->IsAggresive());
-		OwnerSpawner->ProcessPlayer(APlayer2);
 		APlayer2->PlayInteraction(APlayer1->IsAggresive());
+		
+		OwnerSpawner->ProcessPlayer(APlayer1);
+		OwnerSpawner->ProcessPlayer(APlayer2);
+		
 		this->FreeResource();
 	}
 }

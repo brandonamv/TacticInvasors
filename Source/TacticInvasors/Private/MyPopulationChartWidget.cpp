@@ -14,10 +14,6 @@ int32 UMyPopulationChartWidget::NativePaint(const FPaintArgs& Args, const FGeome
     float BarWidth = FMath::Floor(WidgetSize.X / PopulationHistory.Num());
     float HalfHeight = WidgetSize.Y / 2.0f;
 
-    // Dejar un pequeño espacio entre barras si hay pocas iteraciones
-    float Spacing = FMath::Max(1.0f, 50.0f / PopulationHistory.Num());
-    float ActualBarWidth = FMath::Floor(FMath::Max(1.0f, BarWidth - Spacing));
-
     float MaxPop = 1.0f;
     for (const FPopulationRecord& Rec : PopulationHistory)
     {

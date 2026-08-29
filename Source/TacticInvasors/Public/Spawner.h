@@ -16,6 +16,7 @@ class APlayerProccessor;
 /**
  * 
  */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnIterationChanged);
 UCLASS()
 class TACTICINVASORS_API ASpawner : public AInfo
 {
@@ -23,6 +24,8 @@ class TACTICINVASORS_API ASpawner : public AInfo
 
 public:
     ASpawner();
+    UPROPERTY(BlueprintAssignable, Category = "Spawner|Events")
+    FOnIterationChanged OnIterationChanged;
     void PushFreeResource(AResource* Resource);
     AResource* PopFreeResource();
 

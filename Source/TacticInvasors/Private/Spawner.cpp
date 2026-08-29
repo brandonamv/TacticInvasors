@@ -11,6 +11,7 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 
+
 // Move ShuffleArray implementation into the .cpp file to avoid parsing issues
 void ASpawner::ShuffleArray(TArray<AStrategyPlayer*>& TargetArray)
 {
@@ -166,6 +167,7 @@ void ASpawner::AssignFreePlayers()
 	else
 	{
 		CurrentIteration++;
+		OnIterationChanged.Broadcast();
 	}
 
 	FActorSpawnParameters SpawnParams;
@@ -245,6 +247,8 @@ void ASpawner::AssignFreePlayers()
 		if (IsValid(DeadP)) DeadP->SetActorHiddenInGame(true);
 	}
 
+	
+	
 
 	// Shuffle free players and initialize them: move initialized ones to active, keep others waiting
 	ShuffleArray(SFreePlayers);

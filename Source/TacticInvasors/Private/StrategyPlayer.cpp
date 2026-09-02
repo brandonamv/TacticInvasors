@@ -28,8 +28,31 @@ void AStrategyPlayer::PlayInteraction(bool isAgresive)
 	}
 
 	SetActorLocation(MeshComponent->GetComponentLocation());
-	// Changing the actor's location here is not directly related to billboard visibility and could cause unintended movement.
 
+	if (UWorld* World = GetWorld())
+	{
+		if (APlayerController* PC = World->GetFirstPlayerController())
+		{
+			if (APlayerCameraManager* CameraManager = PC->PlayerCameraManager)
+			{
+				const FVector CameraRight = CameraManager->GetActorRightVector();
+				const FVector CameraUp = CameraManager->GetActorUpVector();
+
+				// Ajusta estas magnitudes en unidades Unreal
+				const float OffsetRight = 45.0f;
+				const float OffsetUp = 120.0f;
+
+				const FVector TargetLocation = MeshComponent->GetComponentLocation()
+					+ (CameraRight * OffsetRight)
+					+ (CameraUp * OffsetUp);
+
+				this->UwDistinctInteraction->SetWorldLocation(TargetLocation);
+				this->UwSameInteraction->SetWorldLocation(TargetLocation);
+			}
+		}
+	}
+	// Changing the actor's location here is not directly related to billboard visibility and could cause unintended movement.
+	this->UwDeathInteraction->SetHiddenInGame(true); // Hide the death interaction billboard
 	if (bIsAgresive == isAgresive)
 	{
 		this->UwSameInteraction->SetHiddenInGame(false); // Show the 'same' interaction billboard
@@ -57,6 +80,28 @@ void AStrategyPlayer::KillPlayer()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[%s]: KillPlayer: Death interaction billboard is null. Cannot show."), *GetName());
 		return;
+	}
+	if (UWorld* World = GetWorld())
+	{
+		if (APlayerController* PC = World->GetFirstPlayerController())
+		{
+			if (APlayerCameraManager* CameraManager = PC->PlayerCameraManager)
+			{
+				const FVector CameraRight = CameraManager->GetActorRightVector();
+				const FVector CameraUp = CameraManager->GetActorUpVector();
+
+				// Ajusta estas magnitudes en unidades Unreal
+				const float OffsetRight = 45.0f;
+				const float OffsetUp = 120.0f;
+
+				const FVector TargetLocation = MeshComponent->GetComponentLocation()
+					+ (CameraRight * OffsetRight)
+					+ (CameraUp * OffsetUp);
+
+				this->UwDeathInteraction->SetWorldLocation(TargetLocation);
+				
+			}
+		}
 	}
 	SetActorLocation(MeshComponent->GetComponentLocation());
 	this->UwDeathInteraction->SetHiddenInGame(false); // Show the death interaction billboard

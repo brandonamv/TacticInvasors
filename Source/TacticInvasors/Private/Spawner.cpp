@@ -10,6 +10,7 @@
 
 #include "Engine/World.h"
 #include "TimerManager.h"
+#include "Components/SphereComponent.h"
 
 
 // Move ShuffleArray implementation into the .cpp file to avoid parsing issues
@@ -169,6 +170,32 @@ void ASpawner::AssignFreePlayers()
 		CurrentIteration++;
 		OnIterationChanged.Broadcast();
 	}
+
+	EventLog += FString::Printf(TEXT("Iteracion: %d\n"), CurrentIteration);
+
+	if (CurrentAgresiveDeaths > 0)
+	{
+		EventLog += FString::Printf(TEXT("%s muertes: %d\n"), *APlayerProcessor->Player1Name, CurrentAgresiveDeaths);
+	}
+	if (CurrentPasiveDeaths > 0)
+	{
+		EventLog += FString::Printf(TEXT("%s muertes: %d\n"), *APlayerProcessor->Player2Name, CurrentPasiveDeaths);
+	}
+
+	if (CurrentAgresiveSpawns > 0)
+	{
+		EventLog += FString::Printf(TEXT("%s nuevos: %d\n"), *APlayerProcessor->Player1Name, CurrentAgresiveSpawns);
+	}
+	if (CurrentPasiveSpawns > 0)
+	{
+		EventLog += FString::Printf(TEXT("%s nuevos: %d\n"), *APlayerProcessor->Player2Name, CurrentPasiveSpawns);
+	}
+
+	CurrentAgresiveDeaths = 0;
+	CurrentPasiveDeaths = 0;
+	CurrentAgresiveSpawns = 0;
+	CurrentPasiveSpawns = 0;
+	EventLog += "\n";
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = this;
@@ -459,7 +486,7 @@ void ASpawner::SpawnPlayer(AStrategyPlayer* Player)
 	}
 
 	// Base spawn info
-	FVector PlayerLocation = Player->GetMesh()->GetComponentLocation();
+	FVector PlayerLocation = Player->GetInteractionSphere()->GetComponentLocation();
 
 	FVector SpawnLocation = PlayerLocation;
 	SpawnLocation.Z += 150.0f;
@@ -478,6 +505,7 @@ void ASpawner::SpawnPlayer(AStrategyPlayer* Player)
 		{
 			if (bAggressive)
 			{
+				CurrentAgresiveSpawns++;
 				++CurrentAgresivePlayers;
 				// Try reuse dead aggressive
 				if (!SDeadAgresives.IsEmpty())
@@ -496,7 +524,7 @@ void ASpawner::SpawnPlayer(AStrategyPlayer* Player)
 					{
 						ReusedAgresive->StopInteraction();
 						ReusedAgresive->SetActorHiddenInGame(false);
-						ReusedAgresive->GetMesh()->SetWorldLocation(SpawnLocation);
+						ReusedAgresive->GetInteractionSphere()->SetWorldLocation(SpawnLocation);
 						ReusedAgresive->SetFitness(APlayerProcessor->GetI());
 						this->PushWaitingPlayer(ReusedAgresive);
 						SDeadAgresives.Remove(ReusedAgresive);
@@ -527,6 +555,7 @@ void ASpawner::SpawnPlayer(AStrategyPlayer* Player)
 			}
 			else
 			{
+				CurrentPasiveSpawns++;
 				++CurrentPasivePlayers;
 				// Try reuse dead passive
 				if (!SDeadPasives.IsEmpty())
@@ -544,7 +573,7 @@ void ASpawner::SpawnPlayer(AStrategyPlayer* Player)
 					{
 						ReusedPasive->StopInteraction();
 						ReusedPasive->SetActorHiddenInGame(false);
-						ReusedPasive->GetMesh()->SetWorldLocation(SpawnLocation);
+						ReusedPasive->GetInteractionSphere()->SetWorldLocation(SpawnLocation);
 						ReusedPasive->SetFitness(APlayerProcessor->GetI());
 						this->PushWaitingPlayer(ReusedPasive);
 						SDeadPasives.Remove(ReusedPasive);
@@ -606,6 +635,7 @@ void ASpawner::KillPlayer(AStrategyPlayer* Player)
 
 	if (Player->IsAggresive())
 	{
+		CurrentAgresiveDeaths++;
 		// Safely decrement, never below zero
 		CurrentAgresivePlayers = FMath::Max(0, CurrentAgresivePlayers - 1);
 
@@ -622,6 +652,7 @@ void ASpawner::KillPlayer(AStrategyPlayer* Player)
 	}
 	else
 	{
+		CurrentPasiveDeaths++;
 		// Safely decrement, never below zero
 		CurrentPasivePlayers = FMath::Max(0, CurrentPasivePlayers - 1);
 

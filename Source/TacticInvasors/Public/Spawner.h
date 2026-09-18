@@ -74,6 +74,19 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawner|Data")
     int32 CurrentIteration = 0;
 
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawner|Data")
+    int32 CurrentAgresiveDeaths = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawner|Data")
+    int32 CurrentPasiveDeaths = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawner|Data")
+    int32 CurrentAgresiveSpawns = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawner|Data")
+    int32 CurrentPasiveSpawns = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawner|Data")
+    FString EventLog = "";
+
     // Tamaño del área tridimensional de spawn
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawner|Config")
     FVector SpawnAreaSize;

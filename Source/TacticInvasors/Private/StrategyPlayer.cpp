@@ -1,6 +1,7 @@
 #include "StrategyPlayer.h"
 #include "Spawner.h"
 #include "Resource.h"
+#include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/BillboardComponent.h" // Required for UBillboardComponent
 
@@ -27,7 +28,7 @@ void AStrategyPlayer::PlayInteraction(bool isAgresive)
 		return;
 	}
 
-	SetActorLocation(MeshComponent->GetComponentLocation());
+	SetActorLocation(InteractionSphere->GetComponentLocation());
 
 	if (UWorld* World = GetWorld())
 	{
@@ -38,11 +39,10 @@ void AStrategyPlayer::PlayInteraction(bool isAgresive)
 				const FVector CameraRight = CameraManager->GetActorRightVector();
 				const FVector CameraUp = CameraManager->GetActorUpVector();
 
-				// Ajusta estas magnitudes en unidades Unreal
 				const float OffsetRight = 45.0f;
 				const float OffsetUp = 120.0f;
 
-				const FVector TargetLocation = MeshComponent->GetComponentLocation()
+				const FVector TargetLocation = InteractionSphere->GetComponentLocation()
 					+ (CameraRight * OffsetRight)
 					+ (CameraUp * OffsetUp);
 
@@ -51,14 +51,16 @@ void AStrategyPlayer::PlayInteraction(bool isAgresive)
 			}
 		}
 	}
-	// Changing the actor's location here is not directly related to billboard visibility and could cause unintended movement.
+
 	this->UwDeathInteraction->SetHiddenInGame(true); // Hide the death interaction billboard
 	if (bIsAgresive == isAgresive)
 	{
 		this->UwSameInteraction->SetHiddenInGame(false); // Show the 'same' interaction billboard
+		PlayerState = EPlayerState::SAME;
 	}
 	else {
 		this->UwDistinctInteraction->SetHiddenInGame(false); // Show the 'distinct' interaction billboard
+		PlayerState = EPlayerState::DISTINCT;
 	}
 }
 
@@ -69,6 +71,7 @@ void AStrategyPlayer::StopInteraction()
 		UE_LOG(LogTemp, Warning, TEXT("[%s]: StopInteraction: One of the interaction billboards is null. Cannot hide."), *GetName());
 		return;
 	}
+	PlayerState = EPlayerState::IDLE;
 	this->UwDistinctInteraction->SetHiddenInGame(true); // Hide the distinct interaction billboard
 	this->UwSameInteraction->SetHiddenInGame(true); // Hide the same interaction billboard
 	this->UwDeathInteraction->SetHiddenInGame(true); // Hide the death interaction billboard
@@ -94,7 +97,7 @@ void AStrategyPlayer::KillPlayer()
 				const float OffsetRight = 45.0f;
 				const float OffsetUp = 120.0f;
 
-				const FVector TargetLocation = MeshComponent->GetComponentLocation()
+				const FVector TargetLocation = InteractionSphere->GetComponentLocation()
 					+ (CameraRight * OffsetRight)
 					+ (CameraUp * OffsetUp);
 
@@ -103,14 +106,18 @@ void AStrategyPlayer::KillPlayer()
 			}
 		}
 	}
-	SetActorLocation(MeshComponent->GetComponentLocation());
+	SetActorLocation(InteractionSphere->GetComponentLocation());
 	this->UwDeathInteraction->SetHiddenInGame(false); // Show the death interaction billboard
+	PlayerState = EPlayerState::DEATH;
 }
 
 void AStrategyPlayer::BeginPlay()
 {
 	Super::BeginPlay();
-	MeshComponent = FindComponentByClass<UStaticMeshComponent>();
+
+	InteractionSphere = FindComponentByClass<USphereComponent>();
+
+	UE_LOG(LogTemp, Log, TEXT("[%s]: BeginPlay: InteractionSphere = %s"), *GetName(), InteractionSphere ? *InteractionSphere->GetName() : TEXT("nullptr"));
 	
 	// Buscar y asignar UwDistinctInteraction como UBillboardComponent
 	UBillboardComponent* DistinctInteractionBillboardComponent = FindComponentByTag<UBillboardComponent>(FName("DistinctInteraction"));
@@ -165,17 +172,17 @@ void AStrategyPlayer::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 
-	if (!TargetResource || !MeshComponent || !bHasTarget) 
+	if (!TargetResource || !InteractionSphere || !bHasTarget) 
 	{
-		if (MeshComponent->IsSimulatingPhysics())
+		if (InteractionSphere->IsSimulatingPhysics())
 		{
-			MeshComponent->SetPhysicsLinearVelocity(FVector::ZeroVector);
-			MeshComponent->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+			InteractionSphere->SetPhysicsLinearVelocity(FVector::ZeroVector);
+			InteractionSphere->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
 		}
 		return;
 	}
 
-	FVector CurrentPhysicalLocation = MeshComponent->GetComponentLocation();
+	FVector CurrentPhysicalLocation = InteractionSphere->GetComponentLocation();
 	FVector GoalLocation = TargetResource->GetActorLocation();
 
 	const float Distance = FVector::Dist(CurrentPhysicalLocation, GoalLocation);
@@ -183,10 +190,10 @@ void AStrategyPlayer::Tick(float DeltaTime)
 
 	if (Distance <= StopDistance)
 	{
-		if (MeshComponent->IsSimulatingPhysics())
+		if (InteractionSphere->IsSimulatingPhysics())
 		{
-			MeshComponent->SetPhysicsLinearVelocity(FVector::ZeroVector);
-			MeshComponent->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+			InteractionSphere->SetPhysicsLinearVelocity(FVector::ZeroVector);
+			InteractionSphere->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
 		}
 		TargetResource->SetTaked(this);
 		bHasTarget = false;
@@ -196,12 +203,15 @@ void AStrategyPlayer::Tick(float DeltaTime)
 	FVector Direction = (GoalLocation - CurrentPhysicalLocation).GetSafeNormal();
 	const float CurrentSpeed = 500.0f * ASpeed;
 	FVector TargetVelocity = Direction * CurrentSpeed;
-	TargetVelocity.Z = MeshComponent->GetComponentVelocity().Z; // Mantener gravedad
+	TargetVelocity.Z = InteractionSphere->GetComponentVelocity().Z; // Mantener gravedad
 
-	if (!MeshComponent->IsSimulatingPhysics())
+	FRotator TargetRotation = TargetVelocity.Rotation();
+	InteractionSphere->SetWorldRotation(TargetRotation);
+
+	if (!InteractionSphere->IsSimulatingPhysics())
 	{
-		MeshComponent->SetSimulatePhysics(true);
+		InteractionSphere->SetSimulatePhysics(true);
 	}
 
-	MeshComponent->SetPhysicsLinearVelocity(TargetVelocity);
+	InteractionSphere->SetPhysicsLinearVelocity(TargetVelocity);
 }

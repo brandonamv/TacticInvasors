@@ -116,8 +116,6 @@ void AStrategyPlayer::BeginPlay()
 	Super::BeginPlay();
 
 	InteractionSphere = FindComponentByClass<USphereComponent>();
-
-	UE_LOG(LogTemp, Log, TEXT("[%s]: BeginPlay: InteractionSphere = %s"), *GetName(), InteractionSphere ? *InteractionSphere->GetName() : TEXT("nullptr"));
 	
 	// Buscar y asignar UwDistinctInteraction como UBillboardComponent
 	UBillboardComponent* DistinctInteractionBillboardComponent = FindComponentByTag<UBillboardComponent>(FName("DistinctInteraction"));
@@ -128,7 +126,6 @@ void AStrategyPlayer::BeginPlay()
 		{
 			UwDistinctInteraction->SetHiddenInGame(true); // Hide initially
 		}
-		UE_LOG(LogTemp, Log, TEXT("[%s]: DistinctInteractionBillboardComponent found. UwDistinctInteraction = %s"), *GetName(), UwDistinctInteraction ? *UwDistinctInteraction->GetName() : TEXT("nullptr"));
 	}
 	else
 	{
@@ -144,7 +141,6 @@ void AStrategyPlayer::BeginPlay()
 		{
 			UwSameInteraction->SetHiddenInGame(true); // Hide initially
 		}
-		UE_LOG(LogTemp, Log, TEXT("[%s]: SameInteractionBillboardComponent found. UwSameInteraction = %s"), *GetName(), UwSameInteraction ? *UwSameInteraction->GetName() : TEXT("nullptr"));
 	}
 	else
 	{
@@ -159,7 +155,6 @@ void AStrategyPlayer::BeginPlay()
 		{
 			UwDeathInteraction->SetHiddenInGame(true); // Hide initially
 		}
-		UE_LOG(LogTemp, Log, TEXT("[%s]: DeathInteractionBillboardComponent found. UwDeathInteraction = %s"), *GetName(), UwDeathInteraction ? *UwDeathInteraction->GetName() : TEXT("nullptr"));
 	}
 	else
 	{

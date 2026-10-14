@@ -38,13 +38,11 @@ void AResource::SetAsigned(AStrategyPlayer* Player1, AStrategyPlayer* Player2)
 	bTaked1 = false;
 	APlayer1 = Player1;
 	Player1->InitializeAgent(this);
-	UE_LOG(LogTemp, Log, TEXT("[%s]: Assigned Player1 = %s"), *GetName(), *Player1->GetName());
 
 	bPlayer2 = true;
 	bTaked2 = false;
 	APlayer2 = Player2;
 	Player2->InitializeAgent(this);
-	UE_LOG(LogTemp, Log, TEXT("[%s]: Assigned Player2 = %s"), *GetName(), *Player2->GetName());
 	return;
 
 }
@@ -68,7 +66,6 @@ void AResource::SetTaked(AStrategyPlayer* Player)
 		if (!bTaked1)
 		{
 			bTaked1 = true;
-			UE_LOG(LogTemp, Log, TEXT("[%s]: Player1 (%s) taked."), *GetName(), *Player->GetName());
 		}
 	}
 	else if (Player == APlayer2)
@@ -76,7 +73,6 @@ void AResource::SetTaked(AStrategyPlayer* Player)
 		if (!bTaked2)
 		{
 			bTaked2 = true;
-			UE_LOG(LogTemp, Log, TEXT("[%s]: Player2 (%s) taked."), *GetName(), *Player->GetName());
 		}
 	}
 	else

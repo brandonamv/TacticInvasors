@@ -194,7 +194,6 @@ bool UOpTree::ConstruirDesdeInfix(const FString& Expresion)
 
 float UOpTree::RealizarOperacion(TSharedPtr<FNodoArbol> Nodo) const
 {
-	UE_LOG(LogTemp, Verbose, TEXT("RealizarOperacion: Evaluating node with data '%s'"), *Nodo->Dato);
 	if (!Nodo.IsValid()) return 0.0f;
 
 	// hoja => número o variable

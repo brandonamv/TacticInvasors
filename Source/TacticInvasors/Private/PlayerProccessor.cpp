@@ -164,7 +164,25 @@ static float ShuntingYard(const FString& Expr)
 
 void APlayerProccessor::Initialize()
 {
-    ReadFile();
+
+    ASpawner* OwnerSpawner = Cast<ASpawner>(GetOwner());
+
+	TArray<FString> MatrixConfig;
+    if (OwnerSpawner)
+    {
+		OwnerSpawner->MatrixConfig.ParseIntoArray(MatrixConfig, TEXT("\n"), true);
+    }
+
+    if (MatrixConfig.Num() > 0)
+    {
+		ProcessText(MatrixConfig);
+		UE_LOG(LogTemp, Log, TEXT("Matrix configuration processed successfully from OwnerSpawner."));
+    }
+    else {
+        ReadFile();
+        UE_LOG(LogTemp, Log, TEXT("Matrix configuration read from file successfully."));
+    }
+    
 }
 
 void APlayerProccessor::ProcessPlayers(AStrategyPlayer* Player1, AStrategyPlayer* Player2)
@@ -180,18 +198,12 @@ void APlayerProccessor::ProcessPlayers(AStrategyPlayer* Player1, AStrategyPlayer
     const int32 Col = Player2->IsAggresive() ? 0 : 1;
 
     float InteractionValue1 = 0.0f;
-	UE_LOG(LogTemp, Log, TEXT("ProcessPlayers: Evaluating interaction for Row=%d Col=%d"), Row, Col);
     if (SInteractionsArray.IsValidIndex(Row) && SInteractionsArray[Row].Values.IsValidIndex(Col))
     {
         UOpTree* Tree = SInteractionsArray[Row].Values[Col];
-		UE_LOG(LogTemp, Log, TEXT("ProcessPlayers: Evaluating interaction for Row=%d Col=%d using tree %s"), Row, Col, *GetNameSafe(Tree));
         if (IsValid(Tree))
         {
             InteractionValue1 = Tree->EvaluarRaiz();
-        }
-        else
-        {
-            UE_LOG(LogTemp, Warning, TEXT("ProcessPlayers: missing tree at Row=%d Col=%d; defaulting to 0."), Row, Col);
         }
     }
     else
@@ -266,11 +278,9 @@ void APlayerProccessor::DailyPenalty(AStrategyPlayer* Player)
 
 int32 APlayerProccessor::GetResourceIncrement(int T, int P)
 {
-	UE_LOG(LogTemp, Log, TEXT("GetResourceIncrement called with T=%d P=%d"), T, P);
 	ResourceFillingFormula->SetT(T);
 	ResourceFillingFormula->SetP(P);
     float Result = ResourceFillingFormula->EvaluarRaiz();
-	UE_LOG(LogTemp, Log, TEXT("GetResourceIncrement: Evaluated formula result = %f"), Result);
 	return FMath::Max(0, FMath::Floor(Result));
 }
 
@@ -307,7 +317,12 @@ void APlayerProccessor::ReadFile()
         UE_LOG(LogTemp, Error, TEXT("ReadFile: Failed to load file: %s"), *FilePath);
         return;
     }
+	ProcessText(Lines);
 
+}
+
+void APlayerProccessor::ProcessText(const TArray<FString> Lines)
+{
     // Reset arrays/state before parsing to allow repeated calls
     SInteractionsArray.Empty();
     InitialAgresivePlayers = 0;
@@ -370,7 +385,7 @@ void APlayerProccessor::ReadFile()
         {
             const FString ValueStr = Line.Mid(2).TrimStartAndEnd();
             ResourceFillingType = static_cast<EResourceFilling>(FMath::Max(0, FCString::Atoi(*ValueStr)));
-			continue;
+            continue;
         }
 
         if (ResourceFillingType != EResourceFilling::NONE && Line.StartsWith(TEXT("f="))) {
@@ -427,8 +442,8 @@ void APlayerProccessor::ReadFile()
 
                 // Build an OpTree for this expression and store it for runtime evaluation
                 UOpTree* Tree = NewObject<UOpTree>(this);
-				Tree->SetV(this->V);
-				Tree->SetC(this->C);
+                Tree->SetV(this->V);
+                Tree->SetC(this->C);
                 if (Tree)
                 {
                     if (!Tree->ConstruirDesdeInfix(Expr))
@@ -484,7 +499,6 @@ void APlayerProccessor::ReadFile()
         {
             UE_LOG(LogTemp, Warning, TEXT("ReadFile: Missing initial players value (index 4) in line: %s"), *Line);
         }
-    } 
-
+    }
 }
 

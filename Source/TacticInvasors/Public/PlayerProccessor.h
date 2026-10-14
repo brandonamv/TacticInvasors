@@ -63,6 +63,7 @@ public:
 
 private:
     void ReadFile();
+    void ProcessText(TArray<FString> Text);
     int32 InitialPasivePlayers;
 
     int32 InitialAgresivePlayers;

@@ -95,6 +95,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawner|Config", meta = (MakeEditWidget = true))
     FVector SpawnerCenterLocation;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawner|Config")
+    FString MatrixConfig="";
+
 private:
     FTimerHandle SpawnPlayersTimerHandle;
     FTimerHandle DeathPlayersTimerHandle;
